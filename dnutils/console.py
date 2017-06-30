@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import os
 import platform
 import shlex
@@ -131,7 +130,7 @@ def barstr(width, percent, color=None, inf=False):
     else:
         bar = infbarstr(width, int(percent))
     if color is not None:
-        filler = '\u25A0'
+        filler = u'\u25A0'.encode('utf8')
         bar = bar.replace('=', filler)
         bar = stylize('[', colored.attr('bold')) + stylize(bar, colored.fg(color)) + stylize(']', colored.attr('bold'))
     else:
@@ -158,7 +157,7 @@ def infbarstr(width, pos):
     return bar
 
 
-class ProgressBar():
+class ProgressBar(object):
     '''
     An ASCII progress bar to show progress in the console.
     '''
@@ -196,16 +195,12 @@ class ProgressBar():
         :example:
 
             >>> bar = ProgressBar(value=.2, color='green', label='in progress...please wait...')
-            [■■■■■■■■■■■■■■■■■■■                                                                           ]  20.000 %
             >>> bar.setlayout('70%:30%')
             >>> print(bar)
-            [■■■■■■■■■■■■                                                  ]  20.000 % in progress...please wait...
             >>> bar.setlayout('100%:0%')
             >>> print(bar)
-            [■■■■■■■■■■■■■■■■■■■                                                                           ]  20.000 %
             >>> bar.setlayout('60:40')
             >>> print(bar)
-            [■■■■■■■■■                                      ]  20.000 % in progress...please wait...
 
         '''
         if ':' in layout:
@@ -351,5 +346,9 @@ class StatusMsg(object):
 
 
 if __name__ == "__main__":
-    sizex, sizey = get_terminal_size()
-    print('width =', sizex, 'height =', sizey)
+    print u'\u25A0'
+    #
+    # sizex, sizey = get_terminal_size()
+    # print('width =', sizex, 'height =', sizey)
+    # bar = ProgressBar(color='green')
+    # bar.update(.5)

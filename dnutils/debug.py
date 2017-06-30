@@ -44,7 +44,7 @@ def _caller(tb=1):
     return rv
 
 
-def out(*args, file=sys.stdout, sep=' ', end='\n', flush=False, tb=1):
+def out(*args, **kwargs):
     '''Basic output function that prints a str-converted list of its arguments.
     
     `out` forwards all arguments to the ordinary `print` function, but appends 
@@ -58,16 +58,15 @@ def out(*args, file=sys.stdout, sep=' ', end='\n', flush=False, tb=1):
     The keyword arguments are inherited from Python's :func:`print` function. 
     There is an additional keyword argument, ``tb``, which determines the depth of the
     calling frame. It is not passed to :func:`print`.'''
-    rv = _caller(tb)
-    print('{}: l.{}: {}'.format(os.path.basename(rv[0]), rv[1], args[0] if args else ''), 
-          *(args[1:] if len(args) > 1 else []), file=file, sep=sep, end=end, flush=flush)
+    rv = _caller(kwargs.get('tb', 1))
+    print('{} ({}): {}'.format(os.path.basename(rv[0]), rv[1], ' '.join(map(str, args)) if args else ''))
 
 
-def stop(*args, file=sys.stdout, sep=' ', end='\n', flush=False, tb=1):
+def stop(*args, **kwargs):
     '''Same as :func:`dnutils.debug.out`, but stops with a promt after having printed 
     the respective arguments until `<enter>` is pressed.'''
-    out(*args, file=file, sep=sep, end=end, flush=flush, tb=tb+1)
-    input('<press enter to continue>')
+    out(*args, tb=kwargs.get('tb', 1) + 1)
+    raw_input('<press enter to continue>')
     
 
 def trace(*args, **kwargs):

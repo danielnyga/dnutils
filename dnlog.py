@@ -25,7 +25,7 @@ class _LoggerAdapter(object):
         self._logger = logger
         self._logger.findCaller = self._caller
 
-    def _caller(self, _):
+    def _caller(self, *_):
         return _caller(4)
 
     def critical(self, *args, **kwargs):
@@ -131,7 +131,7 @@ class ColoredFormatter(logging.Formatter):
     def format(self, record):
         levelstr = colored.attr('reset')
         levelstr += ColoredFormatter.fmap[record.levelno]
-        maxlen = max(map(len, logging._levelToName.values()))
+        maxlen = max(map(len, [n for n in logging._levelNames if type(n) == str]))
         header = '%s - %s - ' % (datetime.datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S'),
                                  colored.stylize(record.levelname.center(maxlen, ' '), levelstr))
         return header + colored.stylize(('\n' + ' ' * len(cleanstr(header))).join(record.msg.split('\n')) + '\n',

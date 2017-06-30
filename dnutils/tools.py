@@ -73,13 +73,6 @@ class edict(dict):
         return type(self)({k: v for k, v in self.iteritems() if k not in d})
     
     
-class eset(set):
-    
-    def __add__(self, s):
-        return set(self).union(s)
-
-
-
 class RStorage(edict, object):
     '''
     Recursive extension of web.util.Storage that applies the Storage constructor
@@ -127,7 +120,8 @@ def rstorify(e):
     elif type(e) in (list, tuple):
         return [rstorify(i) for i in e]
     else: return e
-        
+
+
 def jsonify(o):
     if hasattr(o, 'json'): 
         return o.json
@@ -139,7 +133,8 @@ def jsonify(o):
         return o
     else:
         raise TypeError('object of type "%s" is not jsonifiable: %s' % (type(o), repr(o)))
-    
+
+
 def waitabout(sec):
     '''
     Waits for approximately the given number of seconds.
