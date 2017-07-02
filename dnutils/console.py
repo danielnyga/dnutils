@@ -44,7 +44,7 @@ def get_terminal_size():
     if current_os in ['Linux', 'Darwin'] or current_os.startswith('CYGWIN'):
         tuple_xy = _get_terminal_size_linux()
     if tuple_xy is None:
-        print("default")
+        # print("default")
         tuple_xy = (80, 25)  # default value
     return tuple_xy
 
@@ -109,7 +109,7 @@ def _get_terminal_size_linux():
 
 def tty(stream):
     isatty = getattr(stream, 'isatty', None)
-    return isatty and isatty()
+    return isatty and isatty() or stream.name == '<stdout>'
 
 
 def barstr(width, percent, color=None, inf=False):
@@ -272,7 +272,7 @@ class ProgressBar(object):
                 self.step %= (self.barwidth - 13)
 
     def __str__(self):
-        return '\r' + barstr(self.barwidth, self.value, color=self.color, inf=self.inf) + ' ' + self._label[
+        return '\r\r' + barstr(self.barwidth, self.value, color=self.color, inf=self.inf) + ' ' + self._label[
                                                                                                 :self.lblwidth].ljust(
             self.lblwidth, ' ')
 

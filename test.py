@@ -3,12 +3,13 @@
 import time
 
 import colored
+import sys
 from pymongo import MongoClient
 
 import dnlog
 from dnlog import getlogger
 from dnutils import out, stop, trace
-from dnutils.console import bf, ProgressBar, StatusMsg
+from dnutils.console import bf, ProgressBar, StatusMsg, barstr
 
 db = MongoClient()
 
@@ -21,11 +22,6 @@ dnlog.setup({
 def wait():
     time.sleep(1)
 
-bfctnames = {
-    'out': colored.stylize('out()', colored.attr('bold')),
-    'stop': colored.stylize('stop()', colored.attr('bold')),
-    'trace': colored.stylize('trace()', colored.attr('bold'))
-}
 
 if __name__ == '__main__':
     logger = getlogger('results', dnlog.DEBUG)
@@ -49,25 +45,25 @@ if __name__ == '__main__':
 
     logger.info('Testing the debug functions.')
     wait()
-    out('the %s function always prints the code location where it is called so it can be found again later swiftly.' %
-        bfctnames['out'])
+    out('the', bf('out()'), 'function always prints the code location where it is called so it can be found again later swiftly.')
     wait()
     out('it', 'also', 'accepts', 'multiple', 'arguments', 'which', 'are', 'being', 'concatenated')
-    stop('the %s function is equivalent to %s except for it stops until you hit return:' % (bfctnames['stop'],
-                                                                                            bfctnames['out']))
+    stop('the', bf('stop()'), 'function is equivalent to', bf('out()'), 'except for it stops until you hit return:')
 
-    trace('the %s function gives you a stack trace of the current position' % bfctnames['trace'])
+    trace('the', bf('trace()'), 'function gives you a stack trace of the current position')
 
-    logger.info('testing the', bf('ProgressBar'), 'and', bf('StatusMsg'), '...')
+    logger.info('testing the', bf('ProgressBar'), '...')
     bar = ProgressBar(steps=10, color='deep_sky_blue_4c')
     for i in range(11):
         bar.update(value=i/10., label='step %d' % (i+1))
         time.sleep(.5)
     bar.finish()
 
-    for i in range(20):
+    logger.info('testing the', bf(StatusMsg), '(you should see 5 "OK" and 5 "ERROR" messages)')
+    wait()
+    for i in range(10):
         bar = StatusMsg('this is a Linux-style status bar (%.2d)...' % (i+1))
-        bar.status = StatusMsg.OK
+        bar.status = StatusMsg.OK if i <= 4 else StatusMsg.ERROR
         wait()
         bar.finish()
 
