@@ -6,6 +6,7 @@ Created on May 22, 2017
 import random
 import time
 
+
 def ifnone(if_, else_, transform=None):
     '''Returns the condition ``if_`` iff it is not ``None``, or if a transformation is
     specified, ``transform(if_)``. Returns ``else_`` if the condition is ``None``.
@@ -15,6 +16,7 @@ def ifnone(if_, else_, transform=None):
     else:
         if transform is not None: return transform(if_)
         else: return if_
+
 
 def ifnot(if_, else_, transform=None):
     '''Returns the condition ``if_`` iff it evaluates to ``True``, or if a transformation is
@@ -26,14 +28,15 @@ def ifnot(if_, else_, transform=None):
         if transform is not None: return transform(if_)
         else: return if_
 
+
 def allnone(it):
     '''Returns True iff all elements in the iterable ``it`` are ``None``, and ``False`` otherwise.'''
     return not ([1 for e in it if e is not None])
 
+
 def allnot(it):
     '''Returns True iff all elements in the iterable ``it`` evaluate to ``False``, and ``False`` otherwise.'''
     return not ([1 for e in it if bool(e) is True])
-
 
 
 class edict(dict):
@@ -140,3 +143,30 @@ def waitabout(sec):
     Waits for approximately the given number of seconds.
     '''
     time.sleep(sec + (random.random()-.5) * sec * .5)
+
+
+class LinearScale(object):
+    '''
+    Implementation of a linear mapping from one interval of real
+    numbers [a,b] into another one [c,d] by linearly interpolating.
+
+    Example:
+        >>> scale = LinearScale((1, 2), (-2, 278))
+        >>> scale(1.5)
+        138.0
+    '''
+    def __init__(self, fromi, toi):
+        self._from = fromi
+        self._to = toi
+        self._fromrange = fromi[1] - fromi[0]
+        self._torange = toi[1] - toi[0]
+
+    def _apply(self, value):
+        if not self._from[0] <= value <= self._from[1]:
+            raise ValueError('Must be in [%f, %f]' % self._from)
+        v = float((value-self._from[0])) / self._fromrange
+        return v * self._torange + self._to[0]
+
+    def __call__(self, value):
+        return self._apply(value)
+
