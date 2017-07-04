@@ -344,6 +344,7 @@ class StatusMsg(object):
         sts = ifnone(self._status, '')
         s = ljust(msg, lblwidth - 1, ' ') + ' [ %s ]' % sts.center(statuswidth + (len(sts) - len(cleanstr(sts))), ' ')
         sys.stdout.write('\r' + s)
+        sys.stdout.flush()
 
     def finish(self, erase=False, end='\n'):
         if erase: sys.stdout.write('\r' + ' ' * self.width)
