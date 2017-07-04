@@ -325,6 +325,11 @@ class StatusMsg(object):
         self._status = s
         self.write()
 
+    @property
+    def message(self):
+        return self.msg
+
+    @message.setter
     def message(self, msg):
         self.msg = msg
         self.write()
