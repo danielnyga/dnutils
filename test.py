@@ -5,16 +5,15 @@ import time
 import colored
 from pymongo import MongoClient
 
-import dnlog
-from dnlog import getlogger
-from dnutils import out, stop, trace
+from dnutils import out, stop, trace, logs
 from dnutils.console import bf, ProgressBar, StatusMsg
+from dnutils.logs import getlogger
 
 db = MongoClient()
 
-dnlog.setup({
-    'default': dnlog.newlogger(dnlog.console),
-    'results': dnlog.newlogger(dnlog.console, dnlog.FileHandler('dnutils-test.log'))
+logs.setup({
+    'default': logs.newlogger(logs.console),
+    'results': logs.newlogger(logs.console, logs.FileHandler('dnutils-test.log'))
 })
 
 
@@ -28,7 +27,7 @@ bfctnames = {
 }
 
 if __name__ == '__main__':
-    logger = getlogger('results', dnlog.DEBUG)
+    logger = getlogger('results', logs.DEBUG)
     logger.info('Initialized. Running all tests...')
     wait()
     logger.info('Testing log levels...')
@@ -43,9 +42,9 @@ if __name__ == '__main__':
     logger.debug('This debug message spreads over\nmultiple lines and should be\naligned with appropriate indentation.')
     wait()
 
-    logger.level = dnlog.ERROR
+    logger.level = logs.ERROR
     logger.info('If you see this message, something went wrong with the log levels.')
-    logger.level = dnlog.DEBUG
+    logger.level = logs.DEBUG
 
     logger.info('Testing the debug functions.')
     wait()
