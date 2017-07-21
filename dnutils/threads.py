@@ -1324,6 +1324,7 @@ class Thread:
         self.name = name
 
 # The timer class was contributed by Itamar Shtull-Trauring
+# and extended by Daniel Nyga to support interruption and repeated execution
 
 class Timer(Thread):
     """Call a function after a specified number of seconds:
@@ -1586,10 +1587,13 @@ def hello():
     out('hello')
 
 if __name__ == '__main__':
-    t = Timer(.1, function=hello, repeat='inf')
-    #
-    t.start()
-    t.join()
+    sleep(2)
+    # l.acquire()
+    # l.acquire()
+    # t = Timer(.1, function=hello, repeat='inf')
+
+    # t.start()
+    # t.join()
     # for t in threads:
     #     t.start()
     # for t in threads:

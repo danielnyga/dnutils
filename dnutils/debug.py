@@ -48,7 +48,7 @@ def out(*args, file=sys.stdout, sep=' ', end='\n', flush=False, tb=1):
     '''Basic output function that prints a str-converted list of its arguments.
     
     `out` forwards all arguments to the ordinary `print` function, but appends 
-    the file and line of its call, so it can be found easier from the console output.
+    the file and line of its call, so it can be found easier from the console.rst output.
     
     :param file:    a file-like object (stream); defaults to the current sys.stdout.
     :param sep:     string inserted between values, default a space.
