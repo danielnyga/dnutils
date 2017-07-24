@@ -102,7 +102,7 @@ class Lock:
         Acquire the lock.
 
         If the lock is acquired by some other thread and ``blocking`` is ``True``, this method blocks until it
-        is released. If block is ``False``, :method:`Lock.acquire`` immediately returns whether or not it has
+        is released. If block is ``False``, :func:`Lock.acquire` immediately returns whether or not it has
         successfully acquired the lock (boolean). If ``blocking`` is ``True`` and a timeout is specified, the method
         blocks until the timeout has expired. The return value then specifies whether the lock was acquired
         successfully or not. When mutliple threads wait for for a release of the lock, an arbitrary thread may
@@ -159,7 +159,7 @@ class Lock:
         Interrupts the thread with the given thread id if it is waiting for
         the acquisition of the lock.
 
-        In case a thread is unresponsive for it blocks in :method:``Lock.acquire()``, it may
+        In case a thread is unresponsive for it blocks in :func:`Lock.acquire`, it may
         be interrupted by this method. A call to this method causes an :class:`ThreadInterrupt`
         error being raised in the respective thread.
 
