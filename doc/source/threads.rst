@@ -27,17 +27,15 @@ as it is described in the documentation of the ``threading`` module:
     cv = Condition()
 
     # Consume one item
-    cv.acquire()
-    while not an_item_is_available():
-        cv.wait()
-    get_an_available_item()
-    cv.release()
+    with cv:
+        while not an_item_is_available():
+            cv.wait()
+        get_an_available_item()
 
     # Produce one item
-    cv.acquire()
-    make_an_item_available()
-    cv.notify()
-    cv.release()
+    with cv:
+        make_an_item_available()
+        cv.notify()
 
 In this snippet, the waiting thread will literally wait until it is notified and not even a ``KeyboardInterrupt`` is
 capable of releasing the interal lock of the condition object. This impedes graceful termination of heavily
@@ -86,5 +84,13 @@ Interruptable Sleep
 ^^^^^^^^^^^^^^^^^^^
 
 As also the regular ``time.sleep()`` function is not responsive, a customized sleep is included in `dnutils`,
-which also throws a :class:`dnutils.threads.ThreadInterrupt` on a ``SIGINT``.
+which also throws a :class:`dnutils.threads.ThreadInterrupt` on a ``SIGINT``:
+
+.. code-block:: python
+    :linenos:
+
+    try:
+        dnutils.sleep(10)
+    except ThreadInterrupt:
+        pass
 
