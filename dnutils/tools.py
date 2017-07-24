@@ -3,8 +3,7 @@ Created on May 22, 2017
 
 @author: nyga
 '''
-import random
-import time
+
 
 def ifnone(if_, else_, transform=None):
     '''Returns the condition ``if_`` iff it is not ``None``, or if a transformation is
@@ -140,8 +139,4 @@ def jsonify(o):
     else:
         raise TypeError('object of type "%s" is not jsonifiable: %s' % (type(o), repr(o)))
     
-def waitabout(sec):
-    '''
-    Waits for approximately the given number of seconds.
-    '''
-    time.sleep(sec + (random.random()-.5) * sec * .5)
+
