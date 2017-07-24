@@ -1,3 +1,5 @@
+import random
+
 from dnutils import out, ifnone, signals
 
 '''Large parts of this module are taken from the original Python threading
@@ -35,10 +37,10 @@ _allocate_lock = _thread.allocate_lock
 _set_sentinel = _thread._set_sentinel
 get_ident = _thread.get_ident
 ThreadError = _thread.error
-try:
-    _CRLock = _thread.RLock
-except AttributeError:
-    _CRLock = None
+# try:
+#     _CRLock = _thread.RLock
+# except AttributeError:
+#     _CRLock = None
 TIMEOUT_MAX = _thread.TIMEOUT_MAX
 del _thread
 
@@ -71,12 +73,39 @@ def settrace(func):
 # the customized sleep function is interruptable
 
 def sleep(seconds):
-    out(get_ident(), 'is sleeping for', seconds, 'sec')
+    '''
+    Block the calling thread for the given number of seconds.
+
+    :param seconds:
+    :return:
+    '''
     l = Lock()
     l.acquire()
     l.acquire(timeout=seconds)
-    out(get_ident(), 'returns')
 
+
+def waitabout(sec):
+    '''
+    Sleeps for approximately the given number of seconds.
+
+    :return:    the number of seconds the function was blocking
+    '''
+    t = sec + (random.random()-.5) * sec * .5
+    sleep(t)
+    return t
+
+
+def iteractive():
+    '''Returns a generator of tuples of thread ids and respective thread objects
+    of threads that are currently active.'''
+    for tid, tobj in _active.items():
+        yield tid, tobj
+
+
+def active():
+    '''Returns a dict of active local threads, which maps the thread ID to
+    the respective thread object.'''
+    return dict(list(iteractive()))
 
 # Synchronization classes
 
@@ -102,7 +131,7 @@ class Lock:
         Acquire the lock.
 
         If the lock is acquired by some other thread and ``blocking`` is ``True``, this method blocks until it
-        is released. If block is ``False``, :method:`Lock.acquire`` immediately returns whether or not it has
+        is released. If block is ``False``, :func:`Lock.acquire` immediately returns whether or not it has
         successfully acquired the lock (boolean). If ``blocking`` is ``True`` and a timeout is specified, the method
         blocks until the timeout has expired. The return value then specifies whether the lock was acquired
         successfully or not. When mutliple threads wait for for a release of the lock, an arbitrary thread may
@@ -159,7 +188,7 @@ class Lock:
         Interrupts the thread with the given thread id if it is waiting for
         the acquisition of the lock.
 
-        In case a thread is unresponsive for it blocks in :method:``Lock.acquire()``, it may
+        In case a thread is unresponsive for it blocks in :func:`Lock.acquire`, it may
         be interrupted by this method. A call to this method causes an :class:`ThreadInterrupt`
         error being raised in the respective thread.
 
@@ -448,7 +477,7 @@ class Condition:
         """
         if not self._is_owned():
             raise RuntimeError("cannot wait on un-acquired lock")
-        waiter = _allocate_lock()
+        waiter = Lock()
         waiter.acquire()
         self._waiters.append(waiter)
         saved_state = self._release_save()
@@ -516,6 +545,27 @@ class Condition:
                 all_waiters.remove(waiter)
             except ValueError:
                 pass
+
+    def notify_thread(self, tid):
+        '''
+        Wake up only the thread with the given thread id.
+        :param tid:
+        :return:
+        '''
+        if not self._is_owned():
+            raise RuntimeError("cannot notify on un-acquired lock")
+        waiter = self.__waiters.get(tid)
+        if waiter is None:
+            if __debug__:
+                self._note("%s.notify(): no thread with id %s waiting on condition", self, tid)
+            return
+        self._note("%s.notify(): notifying waiter of thread %s", self, tid)
+        t = active().get(tid)
+        waiter.release()
+        try:
+            del self.__waiters[tid]
+        except KeyError:
+            pass
 
     def notify_all(self):
         """Wake up all threads waiting on this condition.
@@ -884,6 +934,72 @@ class BrokenBarrierError(RuntimeError):
     pass
 
 
+class Relay:
+    '''
+    A :class:`dnutils.threads.Relay` can be used in a thread to wait until a set of tasks
+    has been accomplished. The thread holding the relay, however, does not work any of the
+    tasks itself, but it just waits until all tasks have been done by other threads.
+    Only one thread can hold the relay at a time.
+
+    Technically, a relay is thread-safe counter that can be increased and decrased by any
+    thread and the owning thread blocks until the counter has reached 0. For any increase or
+    decrease operation, however, there must be at least one thread waiting on the relay.
+    '''
+
+    def __init__(self):
+        self._waiter = Condition(RLock())
+        self._occupied = None
+        self._flag = False
+        self._tasks = 0
+
+    def _checkowner(self):
+        if not self._occupied:
+            raise RuntimeError('relay must be owned by a thread.')
+
+    def acquire(self):
+        with self._waiter:
+            if self._occupied is not None:
+                raise RuntimeError('only one thread may own the relay at a time.')
+            self._occupied = get_ident()
+
+    def release(self):
+        with self._waiter:
+            if self._occupied != get_ident():
+                raise RuntimeError('cannot release an unacquired relay.')
+            self._occupied = None
+
+    __enter = acquire
+    __exit__ = release
+
+    def wait(self):
+        with self._waiter:
+            self._checkowner()
+            if self._flag:
+                return
+            self._waiter.wait()
+
+    def inc(self):
+        '''Increments the relay counter.'''
+        with self._waiter:
+            self._checkowner()
+            self._tasks += 1
+
+    def dec(self):
+        '''Decrements the relay counter.
+
+        Notifies the thread holding the relay and waiting for the completio tasks
+        when the counter reaches 0.
+        '''
+        with self._waiter:
+            self._checkowner()
+            self._tasks -= 1
+            out('relay value:', self._tasks)
+            if self._tasks == 0:
+                self._flag = True
+                out('notify waiting thread')
+                self._waiter.notify_all()
+
+
 # Helper to generate new thread names
 _counter = _count().__next__
 _counter() # Consume 0 so first non-main thread has id 1.
@@ -954,7 +1070,7 @@ class Thread:
         self._ident = None
         self._tstate_lock = None
         self._started = Event()
-        self._is_stopped = False
+        self._finished = Event()
         self._initialized = True
         self._blocked_by = None
         self._blocklock = Lock()
@@ -978,7 +1094,7 @@ class Thread:
         else:
             # The thread isn't alive after fork: it doesn't have a tstate
             # anymore.
-            self._is_stopped = True
+            self._finished = True
             self._tstate_lock = None
 
     def __repr__(self):
@@ -987,8 +1103,8 @@ class Thread:
         if self._started.is_set():
             status = "started"
         self.is_alive() # easy way to get ._is_stopped set when appropriate
-        if self._is_stopped:
-            status = "stopped"
+        if self._finished.is_set():
+            status = "finished"
         if self._daemonic:
             status += " daemon"
         if self._ident is not None:
@@ -1019,6 +1135,7 @@ class Thread:
                 del _limbo[self]
             raise
         self._started.wait()
+        return self
 
     def run(self):
         """Method representing the thread's activity.
@@ -1153,7 +1270,7 @@ class Thread:
         lock = self._tstate_lock
         if lock is not None:
             assert not lock.locked()
-        self._is_stopped = True
+        self._finished.set()
         self._tstate_lock = None
 
     def _delete(self):
@@ -1238,7 +1355,7 @@ class Thread:
         # called.  That sets ._is_stopped to True, and ._tstate_lock to None.
         lock = self._tstate_lock
         if lock is None:  # already determined that the C code is done
-            assert self._is_stopped
+            assert self._finished.is_set()
         elif lock.acquire(block, timeout):
             lock.release()
             self._stop()
@@ -1280,10 +1397,10 @@ class Thread:
 
         """
         assert self._initialized, "Thread.__init__() not called"
-        if self._is_stopped or not self._started.is_set():
+        if self._finished.is_set() or not self._started.is_set():
             return False
         self._wait_for_tstate_lock(False)
-        return not self._is_stopped
+        return not self._finished.is_set()
 
     isAlive = is_alive
 
@@ -1324,6 +1441,7 @@ class Thread:
         self.name = name
 
 # The timer class was contributed by Itamar Shtull-Trauring
+# and extended by Daniel Nyga to support interruption and repeated execution
 
 class Timer(Thread):
     """Call a function after a specified number of seconds:
@@ -1334,10 +1452,10 @@ class Timer(Thread):
 
     """
 
-    def __init__(self, interval, function, repeat=None, args=None, kwargs=None):
+    def __init__(self, interval, func, repeat=None, args=None, kwargs=None):
         Thread.__init__(self)
         self.interval = interval
-        self.function = function
+        self.function = func
         self.args = args if args is not None else []
         self.kwargs = kwargs if kwargs is not None else {}
         self.finished = Event()
@@ -1371,6 +1489,55 @@ class Timer(Thread):
         finally:
             signals.rm_handler(signals.SIGINT, self._autocancel)
             self.finished.set()
+
+
+class SuspendableThread(Thread):
+    '''
+    This class implements a thread variant that is able to suspend itself until
+    it is being resumed by some other thread. There are :attr:`dnutils.threads.suspended`
+    and :attr:`dnutils.threads.resumed` Events that can be used to wait on the
+    respective events.
+    '''
+
+    def __init__(self, group=None, target=None, name=None,
+                 args=(), kwargs=None, *, daemon=None):
+        Thread.__init__(self, group=group, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
+        self._sleeper = Condition(Lock())
+        self.suspended = Event()
+        self.resumed = Event()
+
+    def suspend(self):
+        '''
+        Causes the calling thread to sleep until it gets resumed. Should only be called
+        from within the thread class.
+        :return:
+        '''
+        if get_ident() != self.ident:
+            raise RuntimeError('a thread can only suspend itself.')
+        with self._sleeper:
+            self.resumed.clear()
+            self.suspended.set()
+            self._sleeper.wait()
+            self.resumed.set()
+            self.suspended.clear()
+
+    def resume(self):
+        '''
+        Wakes up a :class:`dnutils.threads.SuspendableThread` if it is currently
+        suspended.
+        :return:
+        '''
+        with self._sleeper:
+            self._sleeper.notify_all()
+
+    def _stop(self):
+        '''
+        Override the _stop method so the :attr:`dnutils.thread.suspend` event
+        gets also triggered when a thread finishes.
+        '''
+        Thread._stop(self)
+        self.suspended.set()
+
 
 # Special thread class to represent the main thread
 # This is garbage collected through an exit handler
@@ -1557,17 +1724,25 @@ def _after_fork():
 
 
 l = Lock()
+r = Relay()
 
-class MyThread(Thread):
+threadnum = 200
+
+class MyThread(SuspendableThread):
 
     def run(self):
-        out('starting thread', id(current_thread()))
+        out('starting thread and sleeping', self.ident)
         try:
-            with l:
-                # sleep(10)
-                out('critical path: an oridinary lock would block here forever.')
-                out(current_thread().ident, 'calling acquire')
-                l.acquire(blocking=True, timeout=None)
+            r.inc()
+            t = 5
+            out(self.name, 'was working for', waitabout(t))
+            # t = self
+            # while t == self:
+            #     t = threads[random.randint(0, threadnum-1)]
+            # out(self.name, 'wakes up', t.name)
+            # t.resume()
+            r.dec()
+            self.suspend()
         except ThreadInterrupt as e:
             out('caught', repr(e), 'straightening up...')
         out('exiting thread.')
@@ -1577,20 +1752,29 @@ def _interrupt_blocking_threads(*args):
     for t in enumerate():
         t. _interrupt_if_blocking()
 
-
 signals.add_handler(signals.SIGINT, _interrupt_blocking_threads)
 
-threads = [MyThread(name=str(i)) for i in range(200)]
+threads = [MyThread(name=str(i)) for i in range(threadnum)]
 
 def hello():
     out('hello')
 
 if __name__ == '__main__':
-    t = Timer(.1, function=hello, repeat='inf')
-    #
-    t.start()
-    t.join()
-    # for t in threads:
-    #     t.start()
-    # for t in threads:
-    #     t.join()
+    # sleep(2)
+    # l.acquire()
+    # l.acquire()
+    # t = Timer(.1, function=hello, repeat='inf')
+
+    # t.start()
+    # t.join()
+    r.acquire()
+    for t in threads:
+        t.start()
+    out('all threads should sleep now...')
+    sleep(1)
+    out('waking up the first...')
+    sleep(1)
+    # threads[0].resume()
+    r.wait()
+    r.release()
+    out('main thread exiting.')

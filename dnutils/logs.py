@@ -201,7 +201,7 @@ def setup(loggers=None):
     Initial setup for the logging of the current process.
 
     The root logger is identified equivalently by None or 'default'. If no specification for the root logger
-    is provided, a standard console handler will be automatically appended.
+    is provided, a standard console.rst handler will be automatically appended.
 
     :param loggers: a dictionary mapping the names of loggers to :class:`dnlog.LoggerConfig` instances.
     :return:

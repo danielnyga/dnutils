@@ -30,10 +30,10 @@ def ljust(t, l, f):
 
 def get_terminal_size():
     """ getTerminalSize()
-     - get width and height of console
+     - get width and height of console.rst
      - works on linux,os x,windows,cygwin(windows)
      originally retrieved from:
-     http://stackoverflow.com/questions/566746/how-to-get-console-window-width-in-python
+     http://stackoverflow.com/questions/566746/how-to-get-console.rst-window-width-in-python
     """
     current_os = platform.system()
     tuple_xy = None
@@ -160,7 +160,7 @@ def infbarstr(width, pos):
 
 class ProgressBar():
     '''
-    An ASCII progress bar to show progress in the console.
+    An ASCII progress bar to show progress in the console.rst.
     '''
 
     def __init__(self, layout='100%:0%', value=0, steps=None, label='', color=None, stream=sys.stdout, inf=False):
@@ -190,8 +190,8 @@ class ProgressBar():
         ``layout`` must be a string of the form "X:Y" or "X", where
         `X` determines the width of the bar part of the progress bar and
         `Y` determines the width of the label part of the progress bar.
-        Values can be absolute (in console characters) or relative (in percentage values)
-        to the console width.
+        Values can be absolute (in console.rst characters) or relative (in percentage values)
+        to the console.rst width.
 
         :example:
 
@@ -255,7 +255,7 @@ class ProgressBar():
     def finish(self, erase=True, msg='', end='\n'):
         '''Terminates the progress bar.
 
-        :param erase:    If ``True``, the progress bar will be removed (overwritten) from the console.
+        :param erase:    If ``True``, the progress bar will be removed (overwritten) from the console.rst.
         :param msg:      Optional "goodbye"-message to be printed.
         :param end:      Final character to be printed (default is '\\n' to move to a new line)
         '''
@@ -291,7 +291,7 @@ def cleanstr(s):
 
 
 class StatusMsg(object):
-    '''Print a Linux-style status message to the console.'''
+    '''Print a Linux-style status message to the console.rst.'''
     ERROR = colored.stylize('ERROR', (colored.fg('red'), colored.attr('bold')))
     FAILED = colored.stylize('FAILED', (colored.fg('red'), colored.attr('bold')))
     OK = colored.stylize('OK', (colored.fg('green'), colored.attr('bold')))
@@ -309,7 +309,7 @@ class StatusMsg(object):
 
     def setwidth(self, width):
         '''
-        Sets the with in relative or absolute numbers of console characters.
+        Sets the with in relative or absolute numbers of console.rst characters.
         :param width:
         :return:
         '''

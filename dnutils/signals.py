@@ -54,6 +54,13 @@ def _run_handlers(signal, args):
 
 
 def add_handler(signal, handler):
+    '''
+    Add a handler to be executed on the signal ``signal``
+
+    :param signal:  the signal to react to.
+    :param handler: a callable that will be called on the signal.
+    :return:
+    '''
     with _lock:
         handlers_ = handlers[signal]
         if not handlers_:
@@ -63,6 +70,12 @@ def add_handler(signal, handler):
 
 
 def rm_handler(signal, handler):
+    '''
+    Remove a handler if it is registered to the given signal.
+    :param signal:
+    :param handler:
+    :return:
+    '''
     with _lock:
         try:
             handlers[signal].remove(handler)
