@@ -45,9 +45,13 @@ SIGXFSZ = signal_.SIGXFSZ
 
 _lock = threading.Lock()
 
+
 def _run_handlers(signal, args):
+    '''Executes all handlers that are registered for the given
+    siganl in the order of registration.'''
     for h in handlers[signal]:
         h(*args)
+
 
 def add_handler(signal, handler):
     '''
@@ -63,6 +67,7 @@ def add_handler(signal, handler):
             signal_.signal(signal, lambda *args: _run_handlers(signal, args))
         if handler not in handlers_:
             handlers_.append(handler)
+
 
 def rm_handler(signal, handler):
     '''
