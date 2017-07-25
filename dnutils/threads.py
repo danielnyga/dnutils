@@ -951,6 +951,8 @@ class Relay:
         self._occupied = None
         self._flag = False
         self._tasks = 0
+        self.__enter = self.lock = self._waiter.acquire
+        self.__exit__ = self.unlock = self._waiter.release
 
     def _checkowner(self):
         if not self._occupied:
@@ -967,9 +969,6 @@ class Relay:
             if self._occupied != get_ident():
                 raise RuntimeError('cannot release an unacquired relay.')
             self._occupied = None
-
-    __enter = acquire
-    __exit__ = release
 
     def wait(self):
         with self._waiter:
