@@ -196,7 +196,7 @@ def newlogger(*handlers, **kwargs):
     return LoggerConfig(kwargs.get('level', logging.INFO), *handlers)
 
 
-def setup(loggers=None):
+def loggers(loggers=None):
     '''
     Initial setup for the logging of the current process.
 
@@ -251,4 +251,4 @@ def getlogger(name=None, level=None):
 
 
 console = colored_console
-setup()
+loggers()

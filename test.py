@@ -3,17 +3,12 @@
 import time
 
 import colored
-from pymongo import MongoClient
 
-from dnutils import out, stop, trace, logs
-from dnutils.console import bf, ProgressBar, StatusMsg
-from dnutils.logs import getlogger
+from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, loggers, newlogger, logs
 
-db = MongoClient()
-
-logs.setup({
-    'default': logs.newlogger(logs.console),
-    'results': logs.newlogger(logs.console, logs.FileHandler('dnutils-test.log'))
+loggers({
+    'default': newlogger(logs.console),
+    'results': newlogger(logs.console, logs.FileHandler('dnutils-test.log'))
 })
 
 
