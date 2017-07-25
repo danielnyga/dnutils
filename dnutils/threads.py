@@ -948,30 +948,46 @@ class Relay:
 
     def __init__(self):
         self._waiter = Condition(RLock())
+        self._lock = RLock()
         self._occupied = None
         self._flag = False
         self._tasks = 0
-        self.__enter = self.lock = self._waiter.acquire
-        self.__exit__ = self.unlock = self._waiter.release
+        # self.lock = self._waiter.acquire
+        # self.unlock = self._waiter.release
+        # self.__enter__ = self._waiter.__enter__
+        # self.__exit__ = self._waiter.__exit__
+
+    def lock(self):
+        self._lock.acquire()
+
+    def unlock(self):
+        self._lock.release()
+
+    def __enter__(self):
+        self.lock()
+        return self
+
+    def __exit__(self, exc, exct, tb):
+        self.unlock()
 
     def _checkowner(self):
         if not self._occupied:
             raise RuntimeError('relay must be owned by a thread.')
 
     def acquire(self):
-        with self._waiter:
+        with self._lock:
             if self._occupied is not None:
                 raise RuntimeError('only one thread may own the relay at a time.')
             self._occupied = get_ident()
 
     def release(self):
-        with self._waiter:
+        with self._lock:
             if self._occupied != get_ident():
                 raise RuntimeError('cannot release an unacquired relay.')
             self._occupied = None
 
     def wait(self):
-        with self._waiter:
+        with self._lock:
             self._checkowner()
             if self._flag:
                 return
@@ -979,7 +995,7 @@ class Relay:
 
     def inc(self):
         '''Increments the relay counter.'''
-        with self._waiter:
+        with self._lock:
             self._checkowner()
             self._tasks += 1
 
@@ -989,14 +1005,15 @@ class Relay:
         Notifies the thread holding the relay and waiting for the completio tasks
         when the counter reaches 0.
         '''
-        with self._waiter:
+        with self._lock:
             self._checkowner()
             self._tasks -= 1
             out('relay value:', self._tasks)
             if self._tasks == 0:
                 self._flag = True
                 out('notify waiting thread')
-                self._waiter.notify_all()
+                with self._waiter:
+                    self._waiter.notify_all()
 
 
 # Helper to generate new thread names
