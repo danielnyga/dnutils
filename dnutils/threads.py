@@ -13,7 +13,7 @@ from traceback import format_exc as _format_exc
 from _weakrefset import WeakSet
 from itertools import islice as _islice, count as _count
 try:
-    from _collections import deque as _deque
+    from _collections import deque as _deque, defaultdict
 except ImportError:
     from collections import deque as _deque
 
@@ -951,11 +951,11 @@ class Relay:
         self._lock = RLock()
         self._occupied = None
         self._flag = False
-        self._tasks = 0
+        self._counter = 0
         # self.lock = self._waiter.acquire
         # self.unlock = self._waiter.release
-        # self.__enter__ = self._waiter.__enter__
-        # self.__exit__ = self._waiter.__exit__
+        self.__enter__ = self._waiter.__enter__
+        self.__exit__ = self._waiter.__exit__
 
     def lock(self):
         self._lock.acquire()
@@ -987,7 +987,7 @@ class Relay:
             self._occupied = None
 
     def wait(self):
-        with self._lock:
+        with self._waiter:
             self._checkowner()
             if self._flag:
                 return
@@ -997,7 +997,7 @@ class Relay:
         '''Increments the relay counter.'''
         with self._lock:
             self._checkowner()
-            self._tasks += 1
+            self._counter += 1
 
     def dec(self):
         '''Decrements the relay counter.
@@ -1007,13 +1007,14 @@ class Relay:
         '''
         with self._lock:
             self._checkowner()
-            self._tasks -= 1
-            out('relay value:', self._tasks)
-            if self._tasks == 0:
+            self._counter -= 1
+            # out('relay val', self._counter)
+            if self._counter == 0:
                 self._flag = True
-                out('notify waiting thread')
-                with self._waiter:
-                    self._waiter.notify_all()
+                if self._waiter._waiters:
+                    with self._waiter:
+                        # out('relay notfies waiters')
+                        self._waiter.notify_all()
 
 
 # Helper to generate new thread names
@@ -1027,6 +1028,13 @@ _active_limbo_lock = _allocate_lock()
 _active = {}    # maps thread id to Thread object
 _limbo = {}
 _dangling = WeakSet()
+
+# thread signals
+START = 1
+TERM = 2
+SUSPEND = 3
+RESUME = 4
+
 
 # Main class for threads
 
@@ -1048,6 +1056,8 @@ class Thread:
     # Keep sys.exc_clear too to clear the exception just before
     # allowing .join() to return.
     #XXX __exc_clear = _sys.exc_clear
+
+    _signals = {START, TERM}
 
     def __init__(self, group=None, target=None, name=None,
                  args=(), kwargs=None, *, daemon=None):
@@ -1095,6 +1105,31 @@ class Thread:
         self._stderr = _sys.stderr
         # For debugging and _after_fork()
         _dangling.add(self)
+        self._handlers = defaultdict(list)
+
+    def add_handler(self, signal, handler):
+        '''
+        Add the signal handler to the thread's signal handlers
+        :param signal:
+        :param handler:
+        :return:
+        '''
+        assert signal in self._signals
+        with self._blocklock:
+            if handler not in self._handlers[signal]:
+                self._handlers[signal].append(handler)
+
+    def rm_handler(self, signal, handler):
+        '''
+        Remove the given signal handler from the thread's signal handlers.
+        :param signal:
+        :param handler:
+        :return:
+        '''
+        assert signal in self._signals
+        with self._blocklock:
+            if handler in self._handlers[signal]:
+                self._handlers[signal].remove(handler)
 
     def _interrupt_if_blocking(self):
         with self._blocklock:
@@ -1110,7 +1145,7 @@ class Thread:
         else:
             # The thread isn't alive after fork: it doesn't have a tstate
             # anymore.
-            self._finished = True
+            self._finished.clear()
             self._tstate_lock = None
 
     def __repr__(self):
@@ -1214,9 +1249,13 @@ class Thread:
                 _sys.settrace(_trace_hook)
             if _profile_hook:
                 _sys.setprofile(_profile_hook)
-
+            # execute start handlers
+            for h in self._handlers[START]: h()
             try:
-                self.run()
+                if hasattr(self, '_run'): # a protected member has precedence
+                    self._run()
+                else:
+                    self.run()
             except SystemExit:
                 pass
             except:
@@ -1225,27 +1264,21 @@ class Thread:
                 # _sys) in case sys.stderr was redefined since the creation of
                 # self.
                 if _sys and _sys.stderr is not None:
-                    print("Exception in thread %s:\n%s" %
-                          (self.name, _format_exc()), file=_sys.stderr)
+                    print("Exception in thread %s:\n%s" % (self.name, _format_exc()), file=_sys.stderr)
                 elif self._stderr is not None:
                     # Do the best job possible w/o a huge amt. of code to
                     # approximate a traceback (code ideas from
                     # Lib/traceback.py)
                     exc_type, exc_value, exc_tb = self._exc_info()
                     try:
-                        print((
-                            "Exception in thread " + self.name +
-                            " (most likely raised during interpreter shutdown):"), file=self._stderr)
-                        print((
-                            "Traceback (most recent call last):"), file=self._stderr)
+                        print("Exception in thread %s (most likely raised during interpreter shutdown):" % self.name, file=self._stderr)
+                        print("Traceback (most recent call last):", file=self._stderr)
                         while exc_tb:
-                            print((
-                                '  File "%s", line %s, in %s' %
-                                (exc_tb.tb_frame.f_code.co_filename,
-                                    exc_tb.tb_lineno,
-                                    exc_tb.tb_frame.f_code.co_name)), file=self._stderr)
+                            print('  File "%s", line %s, in %s' % (exc_tb.tb_frame.f_code.co_filename,
+                                                                   exc_tb.tb_lineno,
+                                                                   exc_tb.tb_frame.f_code.co_name), file=self._stderr)
                             exc_tb = exc_tb.tb_next
-                        print(("%s: %s" % (exc_type, exc_value)), file=self._stderr)
+                        print("%s: %s" % (exc_type, exc_value), file=self._stderr)
                     # Make sure that exc_tb gets deleted since it is a memory
                     # hog; deleting everything else is just for thoroughness
                     finally:
@@ -1263,6 +1296,8 @@ class Thread:
                     # We don't call self._delete() because it also
                     # grabs _active_limbo_lock.
                     del _active[get_ident()]
+                    # execute termination handlers
+                    for h in self._handlers[TERM]: h()
                 except:
                     pass
 
@@ -1374,7 +1409,7 @@ class Thread:
             assert self._finished.is_set()
         elif lock.acquire(block, timeout):
             lock.release()
-            self._stop()
+            self._stop(self)
 
     @property
     def name(self):
@@ -1514,13 +1549,14 @@ class SuspendableThread(Thread):
     and :attr:`dnutils.threads.resumed` Events that can be used to wait on the
     respective events.
     '''
+    _signals = Thread._signals | {SUSPEND, RESUME}
 
     def __init__(self, group=None, target=None, name=None,
                  args=(), kwargs=None, *, daemon=None):
         Thread.__init__(self, group=group, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
         self._sleeper = Condition(Lock())
-        self.suspended = Event()
-        self.resumed = Event()
+        # self.suspended = Event()
+        # self.resumed = Event()
 
     def suspend(self):
         '''
@@ -1531,11 +1567,20 @@ class SuspendableThread(Thread):
         if get_ident() != self.ident:
             raise RuntimeError('a thread can only suspend itself.')
         with self._sleeper:
-            self.resumed.clear()
-            self.suspended.set()
+            # self.resumed.clear()
+            # self.suspended.set()
+            # run all suspend handlers
+            # out(self._handlers[SUSPEND])
+            for h in self._handlers[SUSPEND]:
+                # out('running suspend handler:', h)
+                h()
             self._sleeper.wait()
-            self.resumed.set()
-            self.suspended.clear()
+            for h in self._handlers[RESUME]:
+                # out('running resume handler:', h)
+                h()
+
+            # self.resumed.set()
+            # self.suspended.clear()
 
     def resume(self):
         '''
@@ -1546,13 +1591,14 @@ class SuspendableThread(Thread):
         with self._sleeper:
             self._sleeper.notify_all()
 
-    def _stop(self):
-        '''
-        Override the _stop method so the :attr:`dnutils.thread.suspend` event
-        gets also triggered when a thread finishes.
-        '''
-        Thread._stop(self)
-        self.suspended.set()
+    # def _stop(self):
+    #     '''
+    #     Override the _stop method so the :attr:`dnutils.thread.suspend` event
+    #     gets also triggered when a thread finishes.
+    #     '''
+    #     Thread._stop(self)
+    #     out('fire suspend event')
+    #     self.suspended.set()
 
 
 # Special thread class to represent the main thread
