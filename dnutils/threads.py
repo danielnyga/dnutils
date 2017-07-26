@@ -1812,7 +1812,9 @@ class MyThread(SuspendableThread):
 
 def _interrupt_blocking_threads(*args):
     for t in enumerate():
+        if type(t) is _MainThread: continue
         t. _interrupt_if_blocking()
+    main_thread()._interrupt_if_blocking()
 
 signals.add_handler(signals.SIGINT, _interrupt_blocking_threads)
 
