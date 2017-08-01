@@ -1,5 +1,7 @@
 import random
 
+import sys
+
 from dnutils import out, ifnone, signals
 
 '''Large parts of this module are taken from the original Python threading
@@ -111,6 +113,7 @@ def active():
 
 class ThreadInterrupt(Exception): pass
 
+CLock = _allocate_lock
 
 class Lock:
     '''An implementation of a lock which is interruptable.'''
@@ -234,6 +237,7 @@ class Lock:
         non-threadsafe variant of the release method.
         :return:
         '''
+        t = current_thread()
         if not self.locked():
             raise RuntimeError('cannot release an unacquired lock.')
         self.__owner = None
@@ -248,10 +252,12 @@ class Lock:
         return self
 
     def __exit__(self, e, t, tb):
-        self.__safe_acquire()
-        if self.locked():
-            self.__release()
-        self.__safe_release()
+        try:
+            self.__safe_acquire()
+            if self.locked():
+                self.__release()
+        finally:
+            self.__safe_release()
 
     def __repr__(self):
         return '<%s.%s %s at 0x%s>' % (self.__class__.__module__,
@@ -414,14 +420,16 @@ class Condition:
         # If the lock defines _release_save() and/or _acquire_restore(),
         # these override the default implementations (which just call
         # release() and acquire() on the lock).  Ditto for _is_owned().
-        try:
-            self._release_save = lock._release_save
-        except AttributeError:
-            pass
-        try:
-            self._acquire_restore = lock._acquire_restore
-        except AttributeError:
-            pass
+        # try:
+        #     self._release_save = lock._release_save
+        # except AttributeError:
+        #     self._release_save = lock.release
+        #     # pass
+        # try:
+        #     self._acquire_restore = lock._acquire_restore
+        # except AttributeError:
+        #     self._acquire_restore = lock.acquire
+        #     # pass
         try:
             self._is_owned = lock._is_owned
         except AttributeError:
@@ -950,6 +958,7 @@ class Relay:
         self._waiter = Condition(RLock())
         self._lock = RLock()
         self._occupied = None
+        self._relay = Lock()
         self._flag = False
         self._counter = 0
         # self.lock = self._waiter.acquire
@@ -971,20 +980,24 @@ class Relay:
         self.unlock()
 
     def _checkowner(self):
-        if not self._occupied:
+        if self._occupied is None:
             raise RuntimeError('relay must be owned by a thread.')
 
     def acquire(self):
-        with self._lock:
-            if self._occupied is not None:
-                raise RuntimeError('only one thread may own the relay at a time.')
+            # if self._occupied is not None:
+            #     raise RuntimeError('only one thread may own the relay at a time.')
+        with self._relay:
             self._occupied = get_ident()
 
     def release(self):
-        with self._lock:
+        with self._relay:
             if self._occupied != get_ident():
                 raise RuntimeError('cannot release an unacquired relay.')
             self._occupied = None
+
+    def reset(self):
+        with self._lock:
+            self._counter = 0
 
     def wait(self):
         with self._waiter:
@@ -1008,13 +1021,12 @@ class Relay:
         with self._lock:
             self._checkowner()
             self._counter -= 1
-            # out('relay val', self._counter)
             if self._counter == 0:
                 self._flag = True
-                if self._waiter._waiters:
-                    with self._waiter:
-                        # out('relay notfies waiters')
-                        self._waiter.notify_all()
+                # if self._waiter._waiters:
+                with self._waiter:
+                    # out('relay notfies waiters')
+                    self._waiter.notify_all()
 
 
 # Helper to generate new thread names
@@ -1100,6 +1112,7 @@ class Thread:
         self._initialized = True
         self._blocked_by = None
         self._blocklock = Lock()
+        self._handlerlock = Lock()
         # sys.stderr is not stored in the class like
         # sys.exc_info since it can be changed between instances
         self._stderr = _sys.stderr
@@ -1115,7 +1128,7 @@ class Thread:
         :return:
         '''
         assert signal in self._signals
-        with self._blocklock:
+        with self._handlerlock:
             if handler not in self._handlers[signal]:
                 self._handlers[signal].append(handler)
 
@@ -1127,7 +1140,7 @@ class Thread:
         :return:
         '''
         assert signal in self._signals
-        with self._blocklock:
+        with self._handlerlock:
             if handler in self._handlers[signal]:
                 self._handlers[signal].remove(handler)
 
@@ -1291,13 +1304,14 @@ class Thread:
                 #XXX self._exc_clear()
                 pass
         finally:
+            for h in self._handlers[TERM]:
+                h()
             with _active_limbo_lock:
                 try:
                     # We don't call self._delete() because it also
                     # grabs _active_limbo_lock.
                     del _active[get_ident()]
                     # execute termination handlers
-                    for h in self._handlers[TERM]: h()
                 except:
                     pass
 
@@ -1409,7 +1423,7 @@ class Thread:
             assert self._finished.is_set()
         elif lock.acquire(block, timeout):
             lock.release()
-            self._stop(self)
+            self._stop()
 
     @property
     def name(self):
@@ -1554,9 +1568,7 @@ class SuspendableThread(Thread):
     def __init__(self, group=None, target=None, name=None,
                  args=(), kwargs=None, *, daemon=None):
         Thread.__init__(self, group=group, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
-        self._sleeper = Condition(Lock())
-        # self.suspended = Event()
-        # self.resumed = Event()
+        self._sleeper = Condition(RLock())
 
     def suspend(self):
         '''
@@ -1567,20 +1579,12 @@ class SuspendableThread(Thread):
         if get_ident() != self.ident:
             raise RuntimeError('a thread can only suspend itself.')
         with self._sleeper:
-            # self.resumed.clear()
-            # self.suspended.set()
             # run all suspend handlers
-            # out(self._handlers[SUSPEND])
             for h in self._handlers[SUSPEND]:
-                # out('running suspend handler:', h)
                 h()
             self._sleeper.wait()
             for h in self._handlers[RESUME]:
-                # out('running resume handler:', h)
                 h()
-
-            # self.resumed.set()
-            # self.suspended.clear()
 
     def resume(self):
         '''
@@ -1590,15 +1594,6 @@ class SuspendableThread(Thread):
         '''
         with self._sleeper:
             self._sleeper.notify_all()
-
-    # def _stop(self):
-    #     '''
-    #     Override the _stop method so the :attr:`dnutils.thread.suspend` event
-    #     gets also triggered when a thread finishes.
-    #     '''
-    #     Thread._stop(self)
-    #     out('fire suspend event')
-    #     self.suspended.set()
 
 
 # Special thread class to represent the main thread
