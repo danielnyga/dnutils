@@ -8,7 +8,7 @@ import colored
 
 import datetime
 
-from dnutils.debug import _caller
+from dnutils.debug import _caller, out
 
 DEBUG = logging.DEBUG
 INFO = logging.INFO
@@ -57,6 +57,10 @@ class _LoggerAdapter(object):
     def level(self, l):
         self._logger.setLevel(l)
 
+    @property
+    def name(self):
+        return self._logger.name
+
     def add_handler(self, h):
         self._logger.addHandler(h)
 
@@ -86,6 +90,13 @@ class _LoggerAdapter(object):
         logger.setLevel(level)
         return _LoggerAdapter(logger)
 
+    def __str__(self):
+        return '<LoggerAdapter name="%s", level=%s>' % (self.name, logging._levelToName[self.level])
+
+def getloggers():
+    with logging._lock:
+        for name in logging.Logger.manager.loggerDict:
+            yield getlogger(name)
 
 def loglevel(level, name=None):
     if name is None:
