@@ -300,7 +300,9 @@ class StatusMsg(object):
 
     def __init__(self, message='', status=None, width='100%', stati=None):
         if stati is None:
-            self.stati = (StatusMsg.ERROR, StatusMsg.OK, StatusMsg.WARNING, StatusMsg.FAILED, StatusMsg.PASSED)
+            self.stati = {StatusMsg.ERROR, StatusMsg.OK, StatusMsg.WARNING, StatusMsg.FAILED, StatusMsg.PASSED}
+        else:
+            self.stati = stati
         self.widthstr = width
         self.setwidth(self.widthstr)
         self.msg = message
