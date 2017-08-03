@@ -80,3 +80,23 @@ def rm_handler(signal, handler):
         try:
             handlers[signal].remove(handler)
         except ValueError: pass
+
+
+def keyint(*_):
+    raise KeyboardInterrupt()
+
+
+def enable_ctrlc():
+    '''
+    Allows to interrupt the main thread by pressing Ctrl-C.
+    :return:
+    '''
+    add_handler(SIGINT, keyint)
+
+
+def disable_ctrlc():
+    '''
+    Disables interruption of the main thread by the Ctrl-C key combination.
+    :return:
+    '''
+    rm_handler(SIGINT, keyint)

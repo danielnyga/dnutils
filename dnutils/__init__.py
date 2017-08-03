@@ -4,7 +4,7 @@ __author__ = 'Daniel Nyga'
 
 from .debug import out, stop, trace, stoptrace
 from .tools import ifnone, ifnot
-from .signals import add_handler, rm_handler
+from .signals import add_handler, rm_handler, enable_ctrlc
 from .threads import Lock, RLock, Condition, Event, Semaphore, BoundedSemaphore, Barrier, Relay, Thread, \
     SuspendableThread
 from .logs import loggers, newlogger, getlogger, DEBUG, INFO, WARNING, ERROR, CRITICAL
