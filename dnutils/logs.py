@@ -180,20 +180,20 @@ class LoggerConfig(object):
         self.level = level
 
 
-def newlogger(*handlers, **kwargs):
+def newlogger(*handlers, level=INFO):
     '''
     Create a new logger configuration.
 
     Takes a list of handlers and optionally a level specification.
 
     Example:
-    >>> dnlog.newlogger(logging.StreamHandler(), level=logging.ERROR)
+    >>> dnlog.newlogger(logging.StreamHandler(), level=ERROR)
 
     :param handlers:
     :param kwargs:
     :return:
     '''
-    return LoggerConfig(kwargs.get('level', logging.INFO), *handlers)
+    return LoggerConfig(level, *handlers)
 
 
 def loggers(loggers=None):
