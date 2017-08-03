@@ -72,8 +72,8 @@ def add_handler(signal, handler):
 def rm_handler(signal, handler):
     '''
     Remove a handler if it is registered to the given signal.
-    :param signal:
-    :param handler:
+    :param signal:  the signal that the handler is registered for
+    :param handler: the handler function.
     :return:
     '''
     with _lock:
