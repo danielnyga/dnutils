@@ -55,11 +55,12 @@ for it checks for Boolean truth instead of ``None``:
 Multiple Signal Handlers
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The original :mod:`signal` module only allows to register one handler at a time. :mod:`dnutils.signals` can be
-used to register an arbitrary number of different handlers, which will all be executed in the order they have been registered:
+The original :mod:`signal` module only allows to register one handler 
+at a time. :mod:`dnutils.signals` can be used to register an arbitrary 
+number of different handlers, which will all be executed in the order 
+they have been registered. More information can be found on
+:doc:`signals`.
 
-.. automodule:: dnutils.signals
-   :members: add_handler, rm_handler
 
 .. .. toctree::
    :hidden:

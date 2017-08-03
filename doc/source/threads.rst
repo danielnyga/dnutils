@@ -78,7 +78,7 @@ would block forever. Catching the :class:`dnutils.threads.ThreadInterrupt`, a bl
 .. warning::
     As threads in the `dnutils` package make use of the :mod:`signal` module, one should not override the signal
     handler using ``signal.signal()`` as the interuption mechanism would break. Rather, it is advisable to use
-    the :mod:`dnutils.signals` module to `add` custom signal handlers.
+    the :mod:`dnutils.signals` module to `add` custom signal handlers. Find more information on :doc:`signals`.
 
 Interruptable Sleep
 ^^^^^^^^^^^^^^^^^^^
