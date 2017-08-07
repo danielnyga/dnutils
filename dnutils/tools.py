@@ -71,9 +71,28 @@ class edict(dict):
         return type(self)({k: v for items in (self.items(), d.items())for k, v in items})
     
     def __sub__(self, d):
-        return type(self)({k: v for k, v in self.iteritems() if k not in d})
-    
-    
+        return type(self)({k: v for k, v in self.items() if k not in d})
+
+    def xpath(self, selector):
+        '''
+        Allows a 'pseudo-xpath' query to a nested set of dictionaries.
+
+        At the moment, only nested dict-selections separated by slashes (``/``) are supported.
+        Allows to conveniently access hierarchical dictionart structures without the need
+        of checking every key for existence.
+
+        :param selector:    a slash-separated list of dict keys
+        :return:
+        '''
+        keys = map(str.strip, selector.split('/'))
+        d = self
+        for key in keys:
+            d = d.get(key)
+            if d is None:
+                return None
+        return d
+
+
 class eset(set):
     
     def __add__(self, s):
@@ -142,3 +161,6 @@ def jsonify(o):
         raise TypeError('object of type "%s" is not jsonifiable: %s' % (type(o), repr(o)))
     
 
+if __name__ == '__main__':
+    d = edict({'a': {'b': {'c': 'hello'}}})
+    print(d.xpath('a/d/c'))
