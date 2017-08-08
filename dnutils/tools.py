@@ -40,6 +40,7 @@ def allnot(it):
 
 sqbrpattern = re.compile(r'\[(\d+)\]')
 
+
 class edict(dict):
     '''
     Enhanced ``dict`` with some convenience methods such as dict addition and
@@ -96,6 +97,8 @@ class edict(dict):
         for key, value in self.items():
             if type(value) is dict:
                 self[key] = edict(value, default=self._default, recursive=True)
+            if type(value) is list:
+                self[key] = [edict(v) if isinstance(v, dict) else v for v in value]
 
     @staticmethod
     def _todict(d, recursive=True):
@@ -105,6 +108,16 @@ class edict(dict):
                 if type(value) is edict:
                     d[key] = edict._todict(value, recursive=True)
         return d
+
+    @staticmethod
+    def _parse_xpath(selector):
+        keys = map(str.strip, selector.split('/'))
+        for key in keys:
+            m = sqbrpattern.match(key)
+            if m is not None:
+                yield int(m.group(1))
+            else:
+                yield key
 
     def xpath(self, selector):
         '''
@@ -117,18 +130,36 @@ class edict(dict):
         :param selector:    a slash-separated list of dict keys
         :return:
         '''
-        keys = map(str.strip, selector.split('/'))
+        keys = edict._parse_xpath(selector)
         d = self
         for key in keys:
-            m = sqbrpattern.match(key)
-            if m is not None:
-                i = int(m.group(1))
-                d = None if i >= len(d) else d[i]
+            if type(key) is int:
+                d = None if key >= len(d) else d[key]
             else:
                 d = d.get(key)
             if d is None:
                 return None
         return d
+
+    def set_xpath(self, selector, data, force=False):
+        '''
+        Creates the xpath structure represented by the selector string, if necessary, to
+        set the data to the end point.
+        :param selector:
+        :param data:
+        :return:
+        '''
+        keys = list(edict._parse_xpath(selector))
+        d = self
+        for key in keys[:-1]:
+            if type(key) is int:
+                raise ValueError('indexing in set_xpath() is not yet supported')
+            else:
+                d_ = d.get(key)
+                if d_ is None or not isinstance(d_, dict) and force:
+                    d[key] = edict()
+                d = d[key]
+        d[keys[-1]] = data
 
     def pprint(self):
         from pprint import pprint
@@ -202,4 +233,6 @@ if __name__ == '__main__':
     print(d.xpath('a/[0]/b/c'))
     d = edict(default=list)
     d['a'].append('first item')
+    d.pprint()
+    d.set_xpath('a/b/c', 'hello, world!', force=True)
     d.pprint()
