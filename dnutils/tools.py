@@ -3,6 +3,7 @@ Created on May 22, 2017
 
 @author: nyga
 '''
+import re
 
 
 def ifnone(if_, else_, transform=None):
@@ -37,11 +38,17 @@ def allnot(it):
     return not ([1 for e in it if bool(e) is True])
 
 
+sqbrpattern = re.compile(r'\[(\d+)\]')
+
 class edict(dict):
     '''
-    Enhanced dict with some convenience methods such as dict addition and
+    Enhanced ``dict`` with some convenience methods such as dict addition and
     subtraction.
-    
+
+    Warning: The constructor using keyword arguments, ie. ``dict(one=1, two=2, ...)`` does not work
+    with the edict dictionaries. Instead, ``edict``s support default values corresponding to the
+    ``defaultdict`` class from the ``itertools`` package.
+
     :Example:
     
     >>> s = edict({'a':{'b': 1}, 'c': [1,2,3]})
@@ -57,7 +64,12 @@ class edict(dict):
     >>> print r
     {'x': 'z', 'c': 5}
     '''
-    
+    def __init__(self, d=None, default=None, recursive=False):
+        dict.__init__(self, ifnone(d, {}))
+        self._default = default
+        if recursive:
+            self._recurse()
+
     def __iadd__(self, d):
         self.update(d)
         return self
@@ -73,6 +85,27 @@ class edict(dict):
     def __sub__(self, d):
         return type(self)({k: v for k, v in self.items() if k not in d})
 
+    def __getitem__(self, key):
+        if self._default is not None and key not in self:
+            self[key] = self._default()
+            return self[key]
+        else:
+            return dict.get(self, key)
+
+    def _recurse(self):
+        for key, value in self.items():
+            if type(value) is dict:
+                self[key] = edict(value, default=self._default, recursive=True)
+
+    @staticmethod
+    def _todict(d, recursive=True):
+        d = dict(d)
+        if recursive:
+            for key, value in d.items():
+                if type(value) is edict:
+                    d[key] = edict._todict(value, recursive=True)
+        return d
+
     def xpath(self, selector):
         '''
         Allows a 'pseudo-xpath' query to a nested set of dictionaries.
@@ -87,17 +120,19 @@ class edict(dict):
         keys = map(str.strip, selector.split('/'))
         d = self
         for key in keys:
-            d = d.get(key)
+            m = sqbrpattern.match(key)
+            if m is not None:
+                i = int(m.group(1))
+                d = None if i >= len(d) else d[i]
+            else:
+                d = d.get(key)
             if d is None:
                 return None
         return d
 
-
-class eset(set):
-    
-    def __add__(self, s):
-        return set(self).union(s)
-
+    def pprint(self):
+        from pprint import pprint
+        pprint(self)
 
 
 class RStorage(edict, object):
@@ -147,6 +182,7 @@ def rstorify(e):
     elif type(e) in (list, tuple):
         return [rstorify(i) for i in e]
     else: return e
+
         
 def jsonify(o):
     if hasattr(o, 'json'): 
@@ -162,5 +198,8 @@ def jsonify(o):
     
 
 if __name__ == '__main__':
-    d = edict({'a': {'b': {'c': 'hello'}}})
-    print(d.xpath('a/d/c'))
+    d = edict({'a': [{'b': {'c': 'hello'}}, {'b': {'c': 'world'}}]}, recursive=1)
+    print(d.xpath('a/[0]/b/c'))
+    d = edict(default=list)
+    d['a'].append('first item')
+    d.pprint()
