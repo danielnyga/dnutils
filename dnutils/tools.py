@@ -119,7 +119,7 @@ class edict(dict):
             else:
                 yield key
 
-    def xpath(self, selector):
+    def xpath(self, selector, insert=None, force=False):
         '''
         Allows a 'pseudo-xpath' query to a nested set of dictionaries.
 
@@ -128,6 +128,8 @@ class edict(dict):
         of checking every key for existence.
 
         :param selector:    a slash-separated list of dict keys
+        :param insert:
+        :param force:
         :return:
         '''
         keys = edict._parse_xpath(selector)
@@ -138,7 +140,9 @@ class edict(dict):
             else:
                 d = d.get(key)
             if d is None:
-                return None
+                if insert is None:
+                    return None
+                return self.set_xpath(selector, insert, force=force)
         return d
 
     def set_xpath(self, selector, data, force=False):
@@ -160,6 +164,7 @@ class edict(dict):
                     d[key] = edict()
                 d = d[key]
         d[keys[-1]] = data
+        return data
 
     def pprint(self):
         from pprint import pprint
