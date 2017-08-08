@@ -4,7 +4,7 @@ import time
 
 import colored
 
-from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, loggers, newlogger, logs
+from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, loggers, newlogger, logs, edict
 
 loggers({
     'default': newlogger(logs.console),
@@ -20,6 +20,23 @@ bfctnames = {
     'stop': colored.stylize('stop()', colored.attr('bold')),
     'trace': colored.stylize('trace()', colored.attr('bold'))
 }
+
+
+def test_tools():
+    d = edict({'a': [{'b': {'c': 'hello'}}, {'b': {'c': 'world'}}]}, recursive=1)
+    assert d.xpath('a/[0]/b/c') == 'hello'
+    assert d.xpath('a/[1]/b/c') == 'world'
+    assert type(d.xpath('a')) is list
+    assert type(d.xpath('a/[0]')) is edict
+    d = edict(default=list)
+    d['a'].append('first item')
+    assert d['a'][0] == 'first item'
+    assert d.xpath('a/[1]') is None
+    d = edict()
+    d.set_xpath('a/b/c', 'hello, world!', force=True)
+    assert d.xpath('a/b/d') is None
+    assert d.xpath('a/b/c') == 'hello, world!'
+
 
 if __name__ == '__main__':
     logger = getlogger('results', logs.DEBUG)
@@ -65,4 +82,7 @@ if __name__ == '__main__':
         wait()
         bar.finish()
 
+    logger.info('Testing tools...')
+    test_tools()
+    logger.info('finished tests.')
 
