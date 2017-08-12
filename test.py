@@ -4,7 +4,11 @@ import time
 
 import colored
 
-from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, loggers, newlogger, logs, edict
+from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, loggers, newlogger, logs, edict, ifnone, \
+    ifnot, allnone, allnot
+
+import unittest
+
 
 loggers({
     'default': newlogger(logs.console),
@@ -22,20 +26,57 @@ bfctnames = {
 }
 
 
-def test_tools():
-    d = edict({'a': [{'b': {'c': 'hello'}}, {'b': {'c': 'world'}}]}, recursive=1)
-    assert d.xpath('a/[0]/b/c') == 'hello'
-    assert d.xpath('a/[1]/b/c') == 'world'
-    assert type(d.xpath('a')) is list
-    assert type(d.xpath('a/[0]')) is edict
-    d = edict(default=list)
-    d['a'].append('first item')
-    assert d['a'][0] == 'first item'
-    assert d.xpath('a/[1]') is None
-    d = edict()
-    d.set_xpath('a/b/c', 'hello, world!', force=True)
-    assert d.xpath('a/b/d') is None
-    assert d.xpath('a/b/c') == 'hello, world!'
+class EDictTest(unittest.TestCase):
+
+    def test_xpath(self):
+        d = edict({'a': [{'b': {'c': 'hello'}}, {'b': {'c': 'world'}}]}, recursive=1)
+        msg = 'xpath query with indexing'
+        self.assertEqual(d.xpath('a/[0]/b/c'), 'hello', msg)
+        self.assertEqual(d.xpath('a/[1]/b/c'), 'world', msg)
+        self.assertTrue(type(d.xpath('a')) is list, msg)
+        self.assertTrue(type(d.xpath('a/[0]')) is edict)
+        d = edict()
+        d.set_xpath('a/b/c', 'hello, world!', force=True)
+        assert d.xpath('a/b/d') is None
+        assert d.xpath('a/b/c') == 'hello, world!'
+
+    def test_default(self):
+        d = edict(default=list)
+        d['a'].append('first item')
+        self.assertEqual(d['a'][0], 'first item')
+        self.assertTrue(d.xpath('a/[1]') is None)
+
+
+class ConditionalTest(unittest.TestCase):
+
+    def test_ifnone(self):
+        self.assertEqual(ifnone(None, 'hello'), 'hello')
+        self.assertEqual(ifnone('hello', None), 'hello')
+        self.assertEqual(ifnone(None, 1, transform=str), 1)
+        self.assertEqual(ifnone(1, 1, transform=str), '1')
+        self.assertEqual(ifnone(0, 1, transform=str), '0')
+
+    def test_ifnot(self):
+        self.assertEqual(ifnot(None, 'hello'), 'hello')
+        self.assertEqual(ifnot('hello', None), 'hello')
+        self.assertEqual(ifnot('', None), None)
+        self.assertEqual(ifnot(None, 1, transform=str), 1)
+        self.assertEqual(ifnot(1, 1, transform=str), '1')
+        self.assertEqual(ifnot(0, 1, transform=str), 1)
+
+    def test_allnone(self):
+        self.assertTrue(allnone([None, None, None]))
+        self.assertFalse(allnone([0, 0, 0]))
+        self.assertFalse(allnone([None, None, 1]))
+        self.assertFalse(allnone([None, None, 0]))
+
+    def test_allnot(self):
+        self.assertTrue(allnot([None, None, None]))
+        self.assertTrue(allnot([0, 0, 0]))
+        self.assertFalse(allnot([None, None, 1]))
+        self.assertTrue(allnot([None, None, 0]))
+
+
 
 
 if __name__ == '__main__':
@@ -81,8 +122,3 @@ if __name__ == '__main__':
         bar.status = StatusMsg.OK
         wait()
         bar.finish()
-
-    logger.info('Testing tools...')
-    test_tools()
-    logger.info('finished tests.')
-
