@@ -46,6 +46,17 @@ class EDictTest(unittest.TestCase):
         self.assertEqual(d['a'][0], 'first item')
         self.assertTrue(d.xpath('a/[1]') is None)
 
+    def test_getset(self):
+        d = edict()
+        d['a'] = 1
+        d['b'] = 2
+        with self.assertRaises(KeyError):
+            d['c']
+        self.assertIsNone(d.get('c'))
+        self.assertEquals(d.get('c', 3), 3)
+        self.assertDictEqual(d, {'a': 1, 'b': 2})
+
+
 
 class ConditionalTest(unittest.TestCase):
 
