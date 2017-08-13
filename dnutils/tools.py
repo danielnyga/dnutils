@@ -91,7 +91,7 @@ class edict(dict):
             self[key] = self._default()
             return self[key]
         else:
-            return dict.get(self, key)
+            return dict.__getitem__(self, key)
 
     def _recurse(self):
         for key, value in self.items():
