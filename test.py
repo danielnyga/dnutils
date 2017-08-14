@@ -3,12 +3,14 @@
 import time
 
 import colored
+import numpy as np
 
 from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, loggers, newlogger, logs, edict, ifnone, \
     ifnot, allnone, allnot
 
 import unittest
 
+from dnutils.stats import Gaussian
 
 loggers({
     'default': newlogger(logs.console),
@@ -53,9 +55,8 @@ class EDictTest(unittest.TestCase):
         with self.assertRaises(KeyError):
             d['c']
         self.assertIsNone(d.get('c'))
-        self.assertEquals(d.get('c', 3), 3)
+        self.assertEqual(d.get('c', 3), 3)
         self.assertDictEqual(d, {'a': 1, 'b': 2})
-
 
 
 class ConditionalTest(unittest.TestCase):
@@ -88,6 +89,19 @@ class ConditionalTest(unittest.TestCase):
         self.assertTrue(allnot([None, None, 0]))
 
 
+class GaussianTest(unittest.TestCase):
+
+    def test_learn(self):
+        mean = np.array([5., 4.])
+        cov = np.array([[1., -0.3], [-0.3, 1.]])
+        data = np.random.multivariate_normal(mean, cov, size=50000)
+        gauss = Gaussian()
+        for d in data:
+            gauss.update(d)
+        for e1, e2 in zip(gauss.mean, mean):
+            self.assertAlmostEqual(e1, e2, 1, 'means differ too much:\n%s\n!=\n%s' % (mean, gauss.mean))
+        for e1, e2 in zip(np.nditer(gauss.cov), np.nditer(cov)):
+            self.assertAlmostEqual(e1, e2, 1, 'covariances differ too much: %s != %s' % (cov, gauss.cov))
 
 
 if __name__ == '__main__':
