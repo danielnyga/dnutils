@@ -38,6 +38,41 @@ def allnot(it):
     return not ([1 for e in it if bool(e) is True])
 
 
+def idxif(it, idx, transform=None):
+    '''Returns the element with the specified index of the iterable ``it``. If a ``transformation`` is specified,
+    the result of the ``transformation`` will be returned applied to the element.
+    If the iterable is ``None``, or ``it`` does not have enough elements, ``None`` is returned.'''
+    if it is None or len(it) <= idx:
+        return None
+    el = it[idx]
+    if transform is not None:
+        return transform(el)
+    else:
+        return el
+
+
+def first(it, transform=None):
+    '''
+    Returns the first element of the iterable ``it``, if it has any.
+    Returns ``None``, if ``it`` is ``None`` or ``it` does not contain any elements. If a transformation is
+    specified, the result of the transformation applied to the first element is returned.
+    :param transform:
+    :param it:
+    :return:
+    '''
+    return idxif(it, 0, transform=transform)
+
+
+def last(it, transform):
+    '''
+    Same as :func:`dnutils.tools.first`, but returns the last element.
+    :param it:
+    :param transform:
+    :return:
+    '''
+    return idxif(it, -1, transform=transform)
+
+
 sqbrpattern = re.compile(r'\[(\d+)\]')
 
 
