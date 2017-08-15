@@ -51,6 +51,14 @@ for it checks for Boolean truth instead of ``None``:
 
 .. autofunction:: dnutils.tools.allnot
 
+List Convenience Functions
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+Enhanced Dictionary Functionality
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 Multiple Signal Handlers
 ~~~~~~~~~~~~~~~~~~~~~~~~

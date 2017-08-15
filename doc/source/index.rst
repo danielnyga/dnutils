@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to dnutils's documentation!
-===================================
+Welcome to dnutils' documentation!
+==================================
 
 `dnutils` is a collection of convenience functions, tools and classes 
 for situations I find myself very frequently. I have developed this 
@@ -22,3 +22,4 @@ data structures.
    threads
    logging
    signals
+   stats
