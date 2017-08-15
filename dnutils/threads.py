@@ -184,7 +184,9 @@ class Lock:
                 if not gotit and timeout is not None: return False
         finally:
             # release the global lock no matter what happened
-            self.__lock.release()
+            try: # it might happen that some other thread has released
+                self.__lock.release()
+            except RuntimeError: pass
 
     def interrupt(self, tid):
         '''
