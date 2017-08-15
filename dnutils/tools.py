@@ -42,7 +42,9 @@ def idxif(it, idx, transform=None):
     '''Returns the element with the specified index of the iterable ``it``. If a ``transformation`` is specified,
     the result of the ``transformation`` will be returned applied to the element.
     If the iterable is ``None``, or ``it`` does not have enough elements, ``None`` is returned.'''
-    if it is None or len(it) <= idx:
+    try:
+        it[idx]
+    except (IndexError, TypeError):
         return None
     el = it[idx]
     if transform is not None:
@@ -63,7 +65,7 @@ def first(it, transform=None):
     return idxif(it, 0, transform=transform)
 
 
-def last(it, transform):
+def last(it, transform=None):
     '''
     Same as :func:`dnutils.tools.first`, but returns the last element.
     :param it:
