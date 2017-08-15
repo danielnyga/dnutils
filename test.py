@@ -91,7 +91,7 @@ class ConditionalTest(unittest.TestCase):
 
 class GaussianTest(unittest.TestCase):
 
-    def test_learn(self):
+    def test_multivariate(self):
         mean = np.array([5., 4.])
         cov = np.array([[1., -0.3], [-0.3, 1.]])
         data = np.random.multivariate_normal(mean, cov, size=50000)
@@ -102,6 +102,13 @@ class GaussianTest(unittest.TestCase):
             self.assertAlmostEqual(e1, e2, 1, 'means differ too much:\n%s\n!=\n%s' % (mean, gauss.mean))
         for e1, e2 in zip(np.nditer(gauss.cov), np.nditer(cov)):
             self.assertAlmostEqual(e1, e2, 1, 'covariances differ too much: %s != %s' % (cov, gauss.cov))
+
+    def test_univariate(self):
+        mu, sigma = 0.5, 0.1
+        data = np.random.normal(mu, sigma, 1000)
+        g = Gaussian(data=data)
+        self.assertAlmostEqual(mu, float(g.mean), 1)
+        self.assertAlmostEqual(sigma, np.sqrt(float(g.cov)), 1)
 
 
 if __name__ == '__main__':

@@ -6,7 +6,7 @@ Created on Jan 5, 2017
 import numpy as np
 from tabulate import tabulate
 
-from dnutils import ifnone
+from dnutils import ifnone, out
 
 
 class Gaussian(object):
@@ -15,37 +15,72 @@ class Gaussian(object):
     '''
 
     def __init__(self, mean=None, cov=None, data=None):
-        self.mean = ifnone(mean, None, np.array)
-        self.cov = ifnone(cov, None, np.array)
+        '''
+        Creates a new Gaussian distribution.
+        :param mean:    the mean of the Gaussian. May be a scalar (univariante) or an array (multivariate).
+        :param cov:     the covariance of the Gaussian. May be a scalar (univariate) or a matrix (multivariate).
+        :param data:    if ``mean`` and ``cov`` are not provided, ``data`` may be a data set (matrix) from which
+                        the parameters of the distribution are estimated.
+        '''
+        self.mean = mean
+        self.cov = cov
         self.samples = []
         if data is not None:
             self.estimate(data)
 
     @property
+    def mean(self):
+        if self._mean is not None and len(self._mean) == 1:
+            return self._mean
+        else:
+            return self._mean
+
+    @mean.setter
+    def mean(self, mu):
+        if mu is not None and hasattr(mu, '__len__'):
+            self._mean = np.array([mu])
+        else:
+            self._mean = mu
+
+    @property
+    def cov(self):
+        if self._cov is not None and len(self._cov) == 1:
+            return self._cov[0, 0]
+        else:
+            return self._cov
+
+    @cov.setter
+    def cov(self, cov):
+        if cov is not None and hasattr(cov, '__len__'):
+            self._cov = np.array([[cov]])
+        else:
+            self._cov = cov
+
+    @property
     def dim(self):
-        if self.mean is None:
+        if self._mean is None:
             raise ValueError('no dimensionality specified yet.')
-        return len(self.mean)
+        return len(self._mean)
 
     def update(self, x):
         '''update the Gaussian distribution with a new data point `x`.'''
-        try:
-            len(x)
-        except AttributeError:
+        if not hasattr(x, '__len__'):
             x = [x]
-        if self.mean is None or self.cov is None:
-            self.mean = np.zeros(len(x))
-            self.cov = np.zeros(shape=(len(x), len(x)))
+        if self._mean is None or self._cov is None:
+            self._mean = np.zeros(len(x))
+            self._cov = np.zeros(shape=(len(x), len(x)))
+        else:
+            assert len(x) == len(self._mean) and self._cov.shape == (len(x), len(x))
         n = len(self.samples)
-        oldmean = np.array(self.mean)
-        oldcov = np.array(self.cov)
-        for i, (m, d) in enumerate(zip(self.mean, x)):
-            self.mean[i] = ((n * m) + d) / (n + 1)
+        oldmean = np.array(self._mean)
+        oldcov = np.array(self._cov)
+        for i, (m, d) in enumerate(zip(self._mean, x)):
+            self._mean[i] = ((n * m) + d) / (n + 1)
         self.samples.append(x)
         if n > 0:
             for j in range(self.dim):
                 for k in range(self.dim):
-                    self.cov[j, k] = (oldcov[j, k] * (n - 1) + n * oldmean[j] * oldmean[k] + x[j] * x[k] - (n + 1) * self.mean[j] * self.mean[k]) / float(n)
+                    self._cov[j, k] = (oldcov[j, k] * (n - 1) + n * oldmean[j] * oldmean[k] + x[j] * x[k] - (n + 1) * self._mean[j] * self._mean[k]) / float(n)
         return self
 
     def update_all(self, data):
@@ -65,6 +100,16 @@ class Gaussian(object):
             raise ValueError('no parameters. You have to set mean and covariance before you draw samples.')
         return np.random.multivariate_normal(self.mean, self.cov, size=n)
 
+    @property
+    def var(self):
+        if self.cov is None: return None
+        return np.array([self.cov[i, i] for i in range(self.dim)])
+
+    def reset(self):
+        self.samples = []
+        self.mean = None
+        self.cov = None
+
     def __repr__(self):
         try:
             dim = '%s-dim' % str(self.dim)
@@ -75,4 +120,11 @@ class Gaussian(object):
         return '<Gaussian %s at 0x%s>' % (dim, hex(id(self)))
 
     def __str__(self):
-        return '<Gaussian\nmean=\n%s\nstddev=\n%s>' % (self.mean, tabulate(self.cov))
+        try:
+            if self.dim > 1:
+                args = '\nmean=\n%s\nstddev=\n%s' % (self.mean, tabulate(self.cov))
+            else:
+                args = 'mean=%.2f, stddev=%.2f' % (self.mean, self.cov)
+        except ValueError:
+            args = 'undefined'
+        return '<Gaussian %s>' % args
