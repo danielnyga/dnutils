@@ -40,7 +40,7 @@ class Gaussian(object):
         if mu is not None and hasattr(mu, '__len__'):
             self._mean = np.array([mu])
         else:
-            self._mean = mu
+            self._mean = ifnone(mu, None, np.array)
 
     @property
     def cov(self):
@@ -54,7 +54,7 @@ class Gaussian(object):
         if cov is not None and hasattr(cov, '__len__'):
             self._cov = np.array([[cov]])
         else:
-            self._cov = cov
+            self._cov = ifnone(cov, None, np.array)
 
     @property
     def dim(self):
@@ -81,7 +81,6 @@ class Gaussian(object):
             for j in range(self.dim):
                 for k in range(self.dim):
                     self._cov[j, k] = (oldcov[j, k] * (n - 1) + n * oldmean[j] * oldmean[k] + x[j] * x[k] - (n + 1) * self._mean[j] * self._mean[k]) / float(n)
-        return self
 
     def update_all(self, data):
         '''Update the distribution with new data points given in `data`.'''
@@ -114,7 +113,7 @@ class Gaussian(object):
         try:
             dim = '%s-dim' % str(self.dim)
             if self.dim == 1:
-                dim = 'mu=%.2f, sigma=%.2f' % (self.mean[0], self.cov[0, 0])
+                dim = 'mu=%.2f, var=%.2f' % (self.mean, self.cov)
         except ValueError:
             dim = '(undefined)'
         return '<Gaussian %s at 0x%s>' % (dim, hex(id(self)))
@@ -122,9 +121,9 @@ class Gaussian(object):
     def __str__(self):
         try:
             if self.dim > 1:
-                args = '\nmean=\n%s\nstddev=\n%s' % (self.mean, tabulate(self.cov))
+                args = '\nmean=\n%s\ncov=\n%s' % (self.mean, tabulate(self.cov))
             else:
-                args = 'mean=%.2f, stddev=%.2f' % (self.mean, self.cov)
+                args = 'mean=%.2f, var=%.2f' % (self.mean, self.cov)
         except ValueError:
             args = 'undefined'
         return '<Gaussian %s>' % args
