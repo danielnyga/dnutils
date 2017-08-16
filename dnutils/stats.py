@@ -101,8 +101,8 @@ class Gaussian(object):
 
     @property
     def var(self):
-        if self.cov is None: return None
-        return np.array([self.cov[i, i] for i in range(self.dim)])
+        if self._cov is None: return None
+        return np.array([self._cov[i, i] for i in range(self.dim)])
 
     def reset(self):
         self.samples = []
