@@ -6,7 +6,7 @@ import colored
 import numpy as np
 
 from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, loggers, newlogger, logs, edict, ifnone, \
-    ifnot, allnone, allnot
+    ifnot, allnone, allnot, first
 
 import unittest
 
@@ -109,6 +109,21 @@ class GaussianTest(unittest.TestCase):
         g = Gaussian(data=data)
         self.assertAlmostEqual(mu, float(g.mean), 1)
         self.assertAlmostEqual(sigma, np.sqrt(float(g.cov)), 1)
+
+
+class IteratorTest(unittest.TestCase):
+
+    def test_first(self):
+        self.assertEqual(first([0, 1, 2]), 0)
+        self.assertEqual(first(None), None)
+        self.assertEqual(first([]))
+
+        def gen():
+            for i in range(3):
+                yield i
+        self.assertEqual(first(gen()), 0)
+        self.assertEqual(first(gen(), str, 'no elements'), '0')
+        self.assertEqual(first([], str, 'no elements'), 'no elements')
 
 
 if __name__ == '__main__':
