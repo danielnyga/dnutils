@@ -53,7 +53,7 @@ def idxif(it, idx, transform=None):
         return el
 
 
-def first(it, transform=None):
+def first(it, transform=None, else_=None):
     '''
     Returns the first element of the iterable ``it``, if it has any.
     Returns ``None``, if ``it`` is ``None`` or ``it` does not contain any elements. If a transformation is
@@ -62,7 +62,10 @@ def first(it, transform=None):
     :param it:
     :return:
     '''
-    return idxif(it, 0, transform=transform)
+    if it is None:
+        return else_
+    return next(iter(it))
+    return else_
 
 
 def last(it, transform=None):
