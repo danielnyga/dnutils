@@ -1121,6 +1121,17 @@ class Thread:
         # For debugging and _after_fork()
         _dangling.add(self)
         self._handlers = defaultdict(list)
+        self._interrupt = False
+
+    def interrupt(self):
+        '''
+        Sets a flag that this thread is supposed to interrupt.
+
+        Once this method has been invoked, any call to ``dnutils.threads.interrupted()`` will raise
+        a :class:`dnutils.thread.ThreadInterrupt` exception.
+        '''
+        self._interrupt = True
+        self._interrupt_if_blocking()
 
     def add_handler(self, signal, handler):
         '''
@@ -1510,6 +1521,7 @@ class Thread:
 # The timer class was contributed by Itamar Shtull-Trauring
 # and extended by Daniel Nyga to support interruption and repeated execution
 
+
 class Timer(Thread):
     """Call a function after a specified number of seconds:
 
@@ -1632,6 +1644,7 @@ class _DummyEvent:
 
     def wait(self): pass
 
+
 class _DummyThread(Thread):
 
     def __init__(self):
@@ -1665,6 +1678,7 @@ def current_thread():
 
 currentThread = current_thread
 
+
 def active_count():
     """Return the number of Thread objects currently alive.
 
@@ -1677,9 +1691,11 @@ def active_count():
 
 activeCount = active_count
 
+
 def _enumerate():
     # Same as enumerate(), but without the lock. Internal use only.
     return list(_active.values()) + list(_limbo.values())
+
 
 def enumerate():
     """Return a list of all Thread objects currently alive.
@@ -1692,6 +1708,7 @@ def enumerate():
     with _active_limbo_lock:
         return list(_active.values()) + list(_limbo.values())
 
+
 from _thread import stack_size
 
 # Create the main thread object,
@@ -1699,6 +1716,7 @@ from _thread import stack_size
 # (Py_Main) as threading._shutdown.
 
 _main_thread = _MainThread()
+
 
 def _shutdown():
     # Obscure:  other threads may be waiting to join _main_thread.  That's
@@ -1719,11 +1737,13 @@ def _shutdown():
         t = _pickSomeNonDaemonThread()
     _main_thread._delete()
 
+
 def _pickSomeNonDaemonThread():
     for t in enumerate():
         if not t.daemon and t.is_alive():
             return t
     return None
+
 
 def main_thread():
     """Return the main thread object.
@@ -1740,6 +1760,11 @@ try:
     from _thread import _local as local
 except ImportError:
     from _threading_local import local
+
+
+def interrupted():
+    if current_thread()._interrupt:
+        raise ThreadInterrupt()
 
 
 def _after_fork():
@@ -1787,6 +1812,7 @@ r = Relay()
 
 threadnum = 200
 
+
 class MyThread(SuspendableThread):
 
     def run(self):
@@ -1809,9 +1835,10 @@ class MyThread(SuspendableThread):
 
 def _interrupt_blocking_threads(*args):
     for t in enumerate():
-        if type(t) is _MainThread: continue
-        t. _interrupt_if_blocking()
-    main_thread()._interrupt_if_blocking()
+        if type(t) is _MainThread:
+            continue
+        t.interrupt()
+    main_thread().interrupt()
 
 signals.add_handler(signals.SIGINT, _interrupt_blocking_threads)
 
@@ -1835,6 +1862,7 @@ if __name__ == '__main__':
     sleep(1)
     out('waking up the first...')
     sleep(1)
+
     # threads[0].resume()
     r.wait()
     r.release()
