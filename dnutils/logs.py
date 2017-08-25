@@ -8,6 +8,7 @@ import colored
 
 import datetime
 
+from dnutils import ifnone
 from dnutils.debug import _caller, out
 
 DEBUG = logging.DEBUG
@@ -245,6 +246,7 @@ def getlogger(name=None, level=None):
     if name == 'default':
         name = None
     logger = logging.getLogger(name)
+    defaultlevel = logging.getLogger().level
     adapter = _LoggerAdapter(logger)
     if not hasattr(logger, '_initialized') or not logger._initialized:
         logger.parent = None
@@ -255,6 +257,7 @@ def getlogger(name=None, level=None):
         # take default handlers from the root logger
         for h in roothandlers:
             adapter.add_handler(h)
+        adapter.level = ifnone(level, defaultlevel)
         logger._initialized = True
     if level is not None:
         adapter.level = level
