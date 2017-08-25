@@ -2,18 +2,16 @@ import json
 import logging
 import os
 import re
-import traceback
-
-import sys
+import tempfile
 
 import atexit
 import colored
 
 import datetime
 
-from dnutils import ifnone, signals
-from dnutils.debug import _caller, out
-from dnutils.threads import sleep
+from dnutils import ifnone
+from dnutils.debug import _caller
+from dnutils.threads import sleep, RLock
 from dnutils.tools import jsonify
 
 DEBUG = logging.DEBUG
@@ -26,7 +24,22 @@ FileHandler = logging.FileHandler
 StreamHandler = logging.StreamHandler
 
 
-_expose_basedir = '.exposed'
+_expose_basedir = '.exposure'
+_exposures = None
+
+
+def tmpdir():
+    '''
+    Returns the path for temporary files.
+
+    On Unix systems, eg. mostly ``/tmp``
+    :return:
+    '''
+    with tempfile.NamedTemporaryFile(delete=True) as f:
+        return os.path.join(*os.path.split(f.name)[:-1])
+
+
+class ExposureEmptyError(Exception): pass
 
 
 class ExposureManager:
@@ -34,10 +47,9 @@ class ExposureManager:
     Manages all instances of exposures.
     '''
 
-    def __init__(self, basedir='.', erase=True):
-        self.exposures = []
-        self.basedir = basedir
-        self.erase_on_exit = erase
+    def __init__(self, basedir=None):
+        self.exposures = {}
+        self.basedir = ifnone(basedir, tmpdir())
 
     def create(self, name, mode):
         '''
@@ -48,54 +60,58 @@ class ExposureManager:
         :return:
         '''
         e = Exposure(name, mode, self.basedir)
-        self.exposures.append(e)
+        self.exposures[(name, mode)] = e
         atexit.register(_cleanup_exposures)
         return e
 
     def close(self):
-        for exposure in self.exposures:
+        for name, exposure in self.exposures.items():
             exposure.close()
-        # erase all data in the exposure folder if erase is true
-        if self.erase_on_exit:
-            self.erase()
-
-    def erase(self):
-        '''
-        Erases all data from the ".exposed" directory in the basedir.
-
-        :return:
-        '''
-        for root, dirs, files in os.walk(os.path.join(self.basedir, _expose_basedir), topdown=False):
-            for name in files:
-                os.remove(os.path.join(root, name))
-            for name in dirs:
-                os.rmdir(os.path.join(root, name))
-
-
-_exposures = None
 
 
 def _cleanup_exposures(*_):
     _exposures.close()
 
 
-def exposures(basedir='.', erase=True):
+def exposures(basedir='.'):
     global _exposures
-    _exposures = ExposureManager(basedir, erase)
+    _exposures = ExposureManager(basedir)
 
 
-def expose(name):
+def expose(name, *data):
+    '''
+    Expose the data ``data`` under the exposure name ``name``.
+    :param name:
+    :param data:
+    :return:
+    '''
+    global _exposures
     if _exposures is None:
-        global _exposures
         _exposures = ExposureManager()
-    return _exposures.create(name, 'w')
+    if (name, 'w') in _exposures.exposures:
+        e = _exposures.exposures[(name, 'w')]
+    e = _exposures.create(name, 'w')
+    if data:
+        if len(data) == 1:
+            data = data[0]
+        e.dump(data)
+    return e
 
 
 def inspect(name):
+    '''
+    Inspect the exposure with the name ``name``.
+    :param name:
+    :return:
+    '''
+    global _exposures
     if _exposures is None:
-        global _exposures
         _exposures = ExposureManager()
-    return _exposures.create(name, 'r')
+    if (name, 'r') in _exposures.exposures:
+        e = _exposures.exposures[(name, 'r')]
+    e = _exposures.create(name, 'r')
+    return e.load()
+
 
 class Exposure:
     '''
@@ -104,7 +120,9 @@ class Exposure:
     wrapper around a regular file, which is being json data written to and read from.
     '''
 
-    def __init__(self, name, mode='w', basedir='.'):
+    def __init__(self, name, mode='w', basedir=None):
+        if basedir is None:
+            basedir = tmpdir()
         basedir = os.path.join(basedir, _expose_basedir)
         if not os.path.exists(basedir):
             os.mkdir(basedir)
@@ -121,9 +139,11 @@ class Exposure:
                 os.mkdir(fullpath)
         exposure_file = os.path.join(fullpath, fname)
         self.name = name
+        self.mode = mode
         if mode == 'w':
-            self.mode = 'w+'
-        self.file = open(exposure_file, self.mode)
+            mode = 'w+'
+        self.file = open(exposure_file, mode)
+        self._lock = RLock()
 
     def dump(self, item):
         '''
@@ -132,21 +152,26 @@ class Exposure:
         :param item:
         :return:
         '''
-        if self.mode != 'w+':
-            raise TypeError('exposure is read-only.')
-        jsondata = jsonify(item)
-        self.file.seek(0)
-        json.dump(jsondata, self.file, indent=4)
-        self.file.write('\n')
-        self.file.flush()
+        with self._lock:
+            if self.mode != 'w':
+                raise TypeError('exposure is read-only.')
+            jsondata = jsonify(item)
+            self.file.seek(0)
+            json.dump(jsondata, self.file, indent=4)
+            self.file.write('\n')
+            self.file.flush()
 
     def close(self):
         '''
         Close this exposure.
         :return:
         '''
-        if self.file:
-            self.file.close()
+        with self._lock:
+            if not self.file.closed:
+                if self.mode == 'w':
+                    self.file.truncate(0)
+                    self.file.flush()
+                    self.file.close()
 
     def load(self, block=1):
         '''
@@ -156,7 +181,12 @@ class Exposure:
         has been updated by the writer
         :return:
         '''
-        return json.load(self.file)
+        with self._lock:
+            self.file.seek(0)
+            if self.file.read(1) == '':
+                raise ExposureEmptyError()
+            self.file.seek(0)
+            return json.load(self.file)
 
 
 class _LoggerAdapter(object):
@@ -408,9 +438,12 @@ loggers()
 
 if __name__ == '__main__':
 
-    ex = expose('/vars/bufsize')
     for i in range(10):
-        print(i)
-        ex.dump({'value': i, 'bufsize': 2048 * (i+1)})
+
+        expose('/vars/bufsize', i+1)
+        # try:
+        #     inspect('/vars/bufsize')
+        # except ExposureEmptyError:
+        #     sys.exit(0)
         sleep(5)
 
