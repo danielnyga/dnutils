@@ -64,7 +64,14 @@ def first(it, transform=None, else_=None):
     '''
     if it is None:
         return else_
-    return next(iter(it))
+    try:
+        el = next(iter(it))
+        if transform is not None:
+            return transform(el)
+        else:
+            return el
+    except StopIteration:
+        pass
     return else_
 
 
