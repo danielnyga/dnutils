@@ -10,6 +10,7 @@ from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, log
 
 import unittest
 
+from dnutils.logs import expose, inspect, ExposureEmptyError
 from dnutils.stats import Gaussian
 
 loggers({
@@ -116,7 +117,7 @@ class IteratorTest(unittest.TestCase):
     def test_first(self):
         self.assertEqual(first([0, 1, 2]), 0)
         self.assertEqual(first(None), None)
-        self.assertEqual(first([]))
+        self.assertEqual(first([]), None)
 
         def gen():
             for i in range(3):
@@ -125,6 +126,17 @@ class IteratorTest(unittest.TestCase):
         self.assertEqual(first(gen(), str, 'no elements'), '0')
         self.assertEqual(first([], str, 'no elements'), 'no elements')
 
+
+class ExposureTest(unittest.TestCase):
+
+    def test_expose_inspect(self):
+        expose('/vars/myexposure', 'a', 'b', 'c')
+        self.assertEqual(inspect('/vars/myexposure'), ['a', 'b', 'c'])
+        expose('/vars/myexposure2', 2)
+        self.assertEqual(inspect('/vars/myexposure2'), 2)
+        expose('/vars/myexposure2', 2).close()
+        with self.assertRaises(ExposureEmptyError):
+            inspect('/vars/myexposure2')
 
 if __name__ == '__main__':
     logger = getlogger('results', logs.DEBUG)
