@@ -260,17 +260,22 @@ def rstorify(e):
     else: return e
 
         
-def jsonify(o):
-    if hasattr(o, 'json'): 
-        return o.json
-    elif isinstance(o, dict):
-        return {str(k): jsonify(v) for k, v in o.iteritems()}
-    elif type(o) in (list, tuple):
-        return [jsonify(e) for e in o]
-    elif isinstance(o, (int, float, bool, str, type(None))):
-        return o
+def jsonify(item):
+    '''
+    Recursively construct a json representation of the argument ``item``.
+    :param item:
+    :return:
+    '''
+    if hasattr(item, 'json'):
+        return item.json
+    elif isinstance(item, dict):
+        return {str(k): jsonify(v) for k, v in item.items()}
+    elif type(item) in (list, tuple):
+        return [jsonify(e) for e in item]
+    elif isinstance(item, (int, float, bool, str, type(None))):
+        return item
     else:
-        raise TypeError('object of type "%s" is not jsonifiable: %s' % (type(o), repr(o)))
+        raise TypeError('object of type "%s" is not jsonifiable: %s' % (type(item), repr(item)))
     
 
 if __name__ == '__main__':
