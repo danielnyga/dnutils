@@ -36,7 +36,7 @@ def tmpdir():
     :return:
     '''
     with tempfile.NamedTemporaryFile(delete=True) as f:
-        return os.path.join(*os.path.split(f.name)[:-1])
+        return os.path.dirname(f.name)
 
 
 class ExposureEmptyError(Exception): pass
