@@ -1,15 +1,20 @@
+import json
 import logging
+import os
 import re
 import traceback
 
 import sys
 
+import atexit
 import colored
 
 import datetime
 
-from dnutils import ifnone
+from dnutils import ifnone, signals
 from dnutils.debug import _caller, out
+from dnutils.threads import sleep
+from dnutils.tools import jsonify
 
 DEBUG = logging.DEBUG
 INFO = logging.INFO
@@ -19,6 +24,139 @@ CRITICAL = logging.CRITICAL
 
 FileHandler = logging.FileHandler
 StreamHandler = logging.StreamHandler
+
+
+_expose_basedir = '.exposed'
+
+
+class ExposureManager:
+    '''
+    Manages all instances of exposures.
+    '''
+
+    def __init__(self, basedir='.', erase=True):
+        self.exposures = []
+        self.basedir = basedir
+        self.erase_on_exit = erase
+
+    def create(self, name, mode):
+        '''
+        Create a new exposure with name ``name`` and mode ``mode``.
+
+        :param name:
+        :param mode:
+        :return:
+        '''
+        e = Exposure(name, mode, self.basedir)
+        self.exposures.append(e)
+        atexit.register(_cleanup_exposures)
+        return e
+
+    def close(self):
+        for exposure in self.exposures:
+            exposure.close()
+        # erase all data in the exposure folder if erase is true
+        if self.erase_on_exit:
+            self.erase()
+
+    def erase(self):
+        '''
+        Erases all data from the ".exposed" directory in the basedir.
+
+        :return:
+        '''
+        for root, dirs, files in os.walk(os.path.join(self.basedir, _expose_basedir), topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+            for name in dirs:
+                os.rmdir(os.path.join(root, name))
+
+
+_exposures = None
+
+
+def _cleanup_exposures(*_):
+    _exposures.close()
+
+
+def exposures(basedir='.', erase=True):
+    global _exposures
+    _exposures = ExposureManager(basedir, erase)
+
+
+def expose(name):
+    if _exposures is None:
+        global _exposures
+        _exposures = ExposureManager()
+    return _exposures.create(name, 'w')
+
+
+def inspect(name):
+    if _exposures is None:
+        global _exposures
+        _exposures = ExposureManager()
+    return _exposures.create(name, 'r')
+
+class Exposure:
+    '''
+    This class implements a data structure for easy and lightweight exposure of
+    parts of a program's state. An exposure is, in essence, a read/write
+    wrapper around a regular file, which is being json data written to and read from.
+    '''
+
+    def __init__(self, name, mode='w', basedir='.'):
+        basedir = os.path.join(basedir, _expose_basedir)
+        if not os.path.exists(basedir):
+            os.mkdir(basedir)
+        dirs = list(os.path.split(name))
+        if not dirs[0].startswith('/'):
+            raise ValueError('exposure names must start with "/"')
+        else:
+            dirs[0] = dirs[0].replace('/', '')
+        fname = dirs[-1]
+        fullpath = basedir
+        for d in dirs[:-1]:
+            fullpath = os.path.join(fullpath, d)
+            if not os.path.exists(fullpath):
+                os.mkdir(fullpath)
+        exposure_file = os.path.join(fullpath, fname)
+        self.name = name
+        if mode == 'w':
+            self.mode = 'w+'
+        self.file = open(exposure_file, self.mode)
+
+    def dump(self, item):
+        '''
+        Write the item to the exposure.
+
+        :param item:
+        :return:
+        '''
+        if self.mode != 'w+':
+            raise TypeError('exposure is read-only.')
+        jsondata = jsonify(item)
+        self.file.seek(0)
+        json.dump(jsondata, self.file, indent=4)
+        self.file.write('\n')
+        self.file.flush()
+
+    def close(self):
+        '''
+        Close this exposure.
+        :return:
+        '''
+        if self.file:
+            self.file.close()
+
+    def load(self, block=1):
+        '''
+        Load the content exposed by this exposure.
+
+        If ``block`` is ``True``, this methods blocks until the content of this exposure
+        has been updated by the writer
+        :return:
+        '''
+        return json.load(self.file)
 
 
 class _LoggerAdapter(object):
@@ -266,3 +404,13 @@ def getlogger(name=None, level=None):
 
 console = colored_console
 loggers()
+
+
+if __name__ == '__main__':
+
+    ex = expose('/vars/bufsize')
+    for i in range(10):
+        print(i)
+        ex.dump({'value': i, 'bufsize': 2048 * (i+1)})
+        sleep(5)
+
