@@ -90,7 +90,8 @@ def expose(name, *data):
         _exposures = ExposureManager()
     if (name, 'w') in _exposures.exposures:
         e = _exposures.exposures[(name, 'w')]
-    e = _exposures.create(name, 'w')
+    else:
+        e = _exposures.create(name, 'w')
     if data:
         if len(data) == 1:
             data = data[0]
@@ -109,7 +110,8 @@ def inspect(name):
         _exposures = ExposureManager()
     if (name, 'r') in _exposures.exposures:
         e = _exposures.exposures[(name, 'r')]
-    e = _exposures.create(name, 'r')
+    else:
+        e = _exposures.create(name, 'r')
     return e.load()
 
 
@@ -441,9 +443,9 @@ if __name__ == '__main__':
     for i in range(10):
 
         expose('/vars/bufsize', i+1)
-        # try:
-        #     inspect('/vars/bufsize')
-        # except ExposureEmptyError:
-        #     sys.exit(0)
+        try:
+            print(inspect('/vars/bufsize'))
+        except ExposureEmptyError:
+            sys.exit(0)
         sleep(5)
 
