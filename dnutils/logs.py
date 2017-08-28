@@ -199,7 +199,10 @@ class Exposure:
         self.mode = mode
         if mode == 'w':
             mode = 'w+'
-        self.file = open(exposure_file, mode)
+        try:
+            self.file = open(exposure_file, mode)
+        except FileNotFoundError as e:
+            raise ExposureEmptyError() from e
         self._lock = RLock()
 
     def dump(self, item):
