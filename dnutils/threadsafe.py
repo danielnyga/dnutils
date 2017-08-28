@@ -80,6 +80,9 @@ class Queue:
         with self.mutex:
             return self._qsize()
 
+    def __len__(self):
+        return self.qsize()
+
     def empty(self):
         '''Return True if the queue is empty, False otherwise (not reliable!).
         This method is likely to be removed at some point.  Use qsize() == 0
