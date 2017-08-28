@@ -5,6 +5,8 @@ import re
 import tempfile
 
 import atexit
+import traceback
+
 import colored
 
 import datetime
@@ -13,6 +15,10 @@ from dnutils import ifnone
 from dnutils.debug import _caller
 from dnutils.threads import sleep, RLock
 from dnutils.tools import jsonify
+
+import portalocker
+FLock = portalocker.Lock
+
 
 DEBUG = logging.DEBUG
 INFO = logging.INFO
@@ -26,6 +32,7 @@ StreamHandler = logging.StreamHandler
 
 _expose_basedir = '.exposure'
 _exposures = None
+_writelockname = '.%s.lock'
 
 
 def tmpdir():
@@ -40,6 +47,44 @@ def tmpdir():
 
 
 class ExposureEmptyError(Exception): pass
+
+
+class ExposureLockedError(Exception): pass
+
+
+def active_exposures(name='/*'):
+    '''
+    Generates the names of all exposures that are currently active (system-wide).
+
+    :param name:    a pattern that the list of exposure names can be filtered (supports the wildcard character *)
+    :return:
+    '''
+    tmp = tmpdir()
+    rootdir = os.path.join(tmp, _expose_basedir)
+    for root, dirs, files in os.walk(rootdir):
+        for f in files:
+            if re.match(r'\.\w+\.lock', f):  # skip file locks
+                continue
+            try:
+                tmplock = FLock(os.path.join(root, _writelockname % f), timeout=0, fail_when_locked=True)
+                tmplock.acquire()
+            except portalocker.LockException:
+                expname = '/'.join([root.replace(rootdir, ''), f])
+                tokens = expname.split('/')
+                patterns = name.split('/')
+                ok = False
+                for idx, pat in enumerate(patterns):
+                    try:
+                        repattern = '^%s$' % re.escape(pat).replace(r'\*', r'.*?')
+                        ok = re.match(repattern, tokens[idx]) is not None
+                    except IndexError:
+                        ok = False
+                    if not ok: break
+                else:
+                    if ok:
+                        yield expname
+            else:
+                tmplock.release()
 
 
 class ExposureManager:
@@ -139,7 +184,17 @@ class Exposure:
             fullpath = os.path.join(fullpath, d)
             if not os.path.exists(fullpath):
                 os.mkdir(fullpath)
-        exposure_file = os.path.join(fullpath, fname)
+        self.fullpath = os.path.abspath(fullpath)
+        exposure_file = os.path.join(self.fullpath, fname)
+        # acquire the lock if write access is required
+        self.flock = None
+        try:
+            if mode == 'w':
+                flockname = os.path.join(self.fullpath, _writelockname % fname)
+                self.flock = FLock(flockname, timeout=0, fail_when_locked=True)
+                self.flock.acquire()
+        except portalocker.LockException as e:
+            raise ExposureLockedError from e
         self.name = name
         self.mode = mode
         if mode == 'w':
@@ -158,6 +213,7 @@ class Exposure:
             if self.mode != 'w':
                 raise TypeError('exposure is read-only.')
             jsondata = jsonify(item)
+            self.file.truncate(0)
             self.file.seek(0)
             json.dump(jsondata, self.file, indent=4)
             self.file.write('\n')
@@ -174,6 +230,7 @@ class Exposure:
                     self.file.truncate(0)
                     self.file.flush()
                     self.file.close()
+                    self.flock.release()
 
     def load(self, block=1):
         '''
@@ -440,12 +497,19 @@ loggers()
 
 if __name__ == '__main__':
 
-    for i in range(10):
+    # for i in range(10):
 
-        expose('/vars/bufsize', i+1)
-        try:
-            print(inspect('/vars/bufsize'))
-        except ExposureEmptyError:
-            sys.exit(0)
-        sleep(5)
+    expose('/vars/bufsize', 'hello')
+    expose('/internal/state', 1)
+    for ex in active_exposures():
+        expose('/vars/bufsize', 'bla')
+        # sleep(10)
+        print(ex, inspect(ex))
+        # portalocker.lock(f2, portalocker.LOCK_EX, timeout=0)
+
+        # try:
+        #     print(inspect('/vars/bufsize'))
+        # except ExposureEmptyError:
+        #     sys.exit(0)
+        # sleep(5)
 
