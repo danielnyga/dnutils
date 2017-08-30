@@ -17,7 +17,7 @@ a particular signal is sent to the main thread, just call :func:`dnutils.signals
    def goodbye(*_):
        print('bye')
     
-    signals.add_handler(signals.SIGINT, goodbye) 
+   signals.add_handler(signals.SIGINT, goodbye) 
     
 will call ``goodbye`` when the main thread receives a ``SIGINT``. As 
 opposed to the regular ``signal`` module, with ``dnutils`` one can 

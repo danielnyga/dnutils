@@ -12,6 +12,18 @@ toolbox with the goal to provide a practical, easy-to-use and
 well-documented collection of utilities for debugging, console output,
 data structures.
 
+Installation
+~~~~~~~~~~~~
+
+Using ``pip``:
+
+.. code-block:: bash
+
+   $ pip install dnutils
+
+Get the source code from: ::
+
+   https://github.com/danielnyga/dnutils
 
 .. toctree::
    :hidden:

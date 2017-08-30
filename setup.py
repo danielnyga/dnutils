@@ -7,8 +7,13 @@ setup(
     description = 'A collection of convenience tools for everyday Python programming',
     author = 'Daniel Nyga',
     author_email = 'daniel.nyga@t-online.de',
-    url = 'https://github.com/danielnyga/dnutils',
+    url = 'https://spritinio.de/dnutils',
     download_url = 'https://github.com/danielnyga/dnutils/archive/0.1.0.tar.gz',
     keywords = ['testing', 'logging', 'threading', 'multithreading', 'debugging', 'tools'],
     classifiers = [],
+    install_requires=[
+        'colored==1.3.5',
+        'tabulate',
+        'portalocker',
+    ]
 )
