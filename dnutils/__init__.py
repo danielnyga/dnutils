@@ -1,5 +1,7 @@
+import os
 
-__version__ = '0.1.0'
+with open(os.path.join(os.path.dirname(__file__), '..', 'VERSION'), 'r') as f:
+    __version__ = f.read()
 __author__ = 'Daniel Nyga'
 
 from .debug import out, stop, trace, stoptrace

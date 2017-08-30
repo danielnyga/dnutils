@@ -1,9 +1,12 @@
 from distutils.core import setup
 
+with open(os.path.join(os.path.dirname(__file__), '..', 'VERSION'), 'r') as f:
+    __version = f.read()
+
 setup(
     name = 'dnutils',
     packages = ['dnutils'],
-    version = '0.1.0',
+    version = __version,
     description = 'A collection of convenience tools for everyday Python programming',
     author = 'Daniel Nyga',
     author_email = 'daniel.nyga@t-online.de',
