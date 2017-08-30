@@ -1,3 +1,4 @@
+import os
 from distutils.core import setup
 
 with open(os.path.join(os.path.dirname(__file__), '..', 'VERSION'), 'r') as f:
