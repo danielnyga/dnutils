@@ -1,7 +1,7 @@
 import os
 from distutils.core import setup
 
-with open(os.path.join(os.path.dirname(__file__), 'VERSION'), 'r') as f:
+with open(os.path.join(os.path.dirname(__file__), 'dnutils', 'VERSION'), 'r') as f:
     __version__ = f.read().strip()
 
 setup(
@@ -20,7 +20,9 @@ setup(
         'tabulate',
         'portalocker',
     ],
-    data_files=[
-        ('', ['VERSION']),
-    ],
+    package_data={
+        '': [
+            'VERSION',
+        ]
+    },
 )
