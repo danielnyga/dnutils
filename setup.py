@@ -19,5 +19,10 @@ setup(
         'colored==1.3.5',
         'tabulate',
         'portalocker',
-    ]
+    ],
+    package_data={
+        '': [
+            'VERSION',
+        ]
+    },
 )
