@@ -12,7 +12,7 @@ setup(
     author = 'Daniel Nyga',
     author_email = 'daniel.nyga@t-online.de',
     url = 'https://spritinio.de/dnutils',
-    download_url = 'https://github.com/danielnyga/dnutils/archive/0.1.0.tar.gz',
+    download_url = 'https://github.com/danielnyga/dnutils/archive/%s.tar.gz' % __version,
     keywords = ['testing', 'logging', 'threading', 'multithreading', 'debugging', 'tools'],
     classifiers = [],
     install_requires=[
