@@ -25,4 +25,5 @@ setup(
             'VERSION',
         ]
     },
+    python_requires='>=3.5',
 )
