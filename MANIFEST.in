@@ -1,0 +1,4 @@
+setup.cfg
+setup.py
+recursive-include python2.7 *
+recursive-include python3.5 *
