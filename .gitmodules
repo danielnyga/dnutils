@@ -1,0 +1,6 @@
+[submodule "python3.5"]
+	path = python3.5
+	url = git://github.com/danielnyga/dnutils
+[submodule "python2.7"]
+	path = python2.7
+	url = git://github.com/danielnyga/dnutils
