@@ -1,12 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+
 import time
 
 import colored
 import numpy as np
 
 from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, loggers, newlogger, logs, edict, ifnone, \
-    ifnot, allnone, allnot, first
+    ifnot, allnone, allnot, first, __version__ as version
 
 import unittest
 
@@ -139,6 +140,7 @@ class ExposureTest(unittest.TestCase):
             inspect('/vars/myexposure2')
 
 if __name__ == '__main__':
+    print('Welcome to dnutils version %s.' % version)
     logger = getlogger('results', logs.DEBUG)
     logger.info('Initialized. Running all tests...')
     wait()
