@@ -1889,10 +1889,6 @@ signals._add_handler(signals.SIGINT, _interrupt_blocking_threads, signals.__syst
 
 threads = [MyThread(name=str(i)) for i in range(threadnum)]
 
-def hello(*_):
-    out('hello')
-
-
 if __name__ == '__main__':
     try:
         for t in threads:
