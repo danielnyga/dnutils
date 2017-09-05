@@ -1,7 +1,9 @@
 import random
 
 import sys
+import traceback
 
+import thread
 from dnutils import out, ifnone, signals
 
 '''Large parts of this module are taken from the original Python threading
@@ -10,7 +12,7 @@ module.'''
 import sys as _sys
 import thread as _thread
 
-from time import time as _time
+from time import time as _time, sleep as _sleep
 from traceback import format_exc as _format_exc
 from _weakrefset import WeakSet
 from itertools import islice as _islice, count as _count
@@ -37,7 +39,7 @@ __all__ = ['active_count', 'Condition', 'current_thread', 'enumerate', 'Event',
 import threading
 _start_new_thread = _thread.start_new_thread
 _allocate_lock = _thread.allocate_lock
-_set_sentinel = threading.Lock  #_thread._set_sentinel
+# _set_sentinel = _allocate_lock  #threading.Lock  #_thread._set_sentinel
 get_ident = _thread.get_ident
 ThreadError = _thread.error
 # try:
@@ -114,13 +116,50 @@ def active():
 
 class ThreadInterrupt(Exception): pass
 
-CLock = _allocate_lock
+
+class _CLockWrapper:
+
+    def __init__(self):
+        self.__lock = _allocate_lock()
+        self.release = self.__lock.release
+        self.locked = self.__lock.locked
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def __exit__(self, e, t, tb):
+        self.release()
+
+    def acquire(self, blocking=True, timeout=None):
+        if timeout > 0:
+            # python 2.7 does not support timeouts on lock objects, so we have to simulate
+            # timeouts by a busy loop with increasing delays
+            endtime = _time() + timeout
+            delay = 0.0005  # 500 us -> initial delay of 1 ms
+            while 1:
+                gotit = self.__lock.acquire(0)
+                if gotit:
+                    break
+                remaining = endtime - _time()
+                if remaining <= 0:
+                    break
+                delay = min(delay * 2., remaining, .25)
+                _sleep(delay)
+        else:
+            gotit = self.__lock.acquire(blocking)
+        return gotit
+
+
+CLock = _CLockWrapper
+_set_sentinel = CLock
+
 
 class Lock:
     '''An implementation of a lock which is interruptable.'''
 
     def __init__(self):
-        self.__lock = _allocate_lock()
+        self.__lock = CLock()  #_allocate_lock()
         self.__blocking = None
         self.__waiters = {}
         self.__owner = None
@@ -163,7 +202,7 @@ class Lock:
                     return True
                 elif not blocking:
                     return False
-                waiter = _allocate_lock()
+                waiter = CLock()
                 waiter.acquire()
                 self.__waiters[tid] = waiter
                 # save this lock in the thread so it can be accessed from a blocking thread later
@@ -171,7 +210,7 @@ class Lock:
                 # release the global lock and sleep until the waiter is released
                 # by the release or interrupt method
                 self.__lock.release()
-                gotit = waiter.acquire(True, ifnone(timeout, -1))
+                gotit = waiter.acquire(blocking, timeout)
                 while 1:
                     self.__lock.acquire()
                     if (self.__blocking is None) or (self.__blocking == tid):
@@ -183,11 +222,12 @@ class Lock:
                 del self.__waiters[tid]
                 t._blocked_by = None
                 if not gotit and timeout is not None: return False
+        except:
+            # traceback.print_exc()
+            raise
         finally:
             # release the global lock no matter what happened
-            try: # it might happen that some other thread has released
-                self.__lock.release()
-            except RuntimeError: pass
+            self.__lock.release()
 
     def interrupt(self, tid):
         '''
@@ -1039,7 +1079,7 @@ def _newname(template="Thread-%d"):
     return template % next(_counter)
 
 # Active thread administration
-_active_limbo_lock = _allocate_lock()
+_active_limbo_lock = CLock()  #_allocate_lock()
 _active = {}    # maps thread id to Thread object
 _limbo = {}
 _dangling = WeakSet()
@@ -1251,6 +1291,8 @@ class Thread:
             if self._daemonic and _sys is None:
                 return
             raise
+        finally:
+            self._tstate_lock.release()
 
     def _set_ident(self):
         self._ident = get_ident()
@@ -1388,6 +1430,17 @@ class Thread:
                 raise
 
     def join(self, timeout=None):
+        '''
+        Modified version of join(), which iteratively calls join with a timeout (even when no timeout
+        is specified) to ensure that signals are handled.
+        '''
+        if timeout > 0:
+           self._join(timeout)
+        else:
+            while self.is_alive():
+                self._join(timeout=.5)
+
+    def _join(self, timeout=None):
         """Wait until the thread terminates.
 
         This blocks the calling thread until the thread whose join() method is
@@ -1417,8 +1470,7 @@ class Thread:
             raise RuntimeError("cannot join thread before it is started")
         if self is current_thread():
             raise RuntimeError("cannot join current thread")
-
-        if timeout is None:
+        if not timeout > 0:
             self._wait_for_tstate_lock()
         else:
             # the behavior of a negative timeout isn't documented, but
@@ -1776,7 +1828,7 @@ def _after_fork():
     # Reset _active_limbo_lock, in case we forked while the lock was held
     # by another (non-forked) thread.  http://bugs.python.org/issue874900
     global _active_limbo_lock, _main_thread
-    _active_limbo_lock = _allocate_lock()
+    _active_limbo_lock = CLock  #_allocate_lock()
 
     # fork() only copied the current thread; clear references to others.
     new_active = {}
@@ -1808,30 +1860,20 @@ def _after_fork():
         assert len(_active) == 1
 
 
-l = Lock()
-r = Relay()
+lock = Lock()
 
 threadnum = 200
-
 
 class MyThread(SuspendableThread):
 
     def run(self):
-        out('starting thread and sleeping', self.ident)
         try:
-            r.inc()
-            t = 5
-            out(self.name, 'was working for', waitabout(t))
-            # t = self
-            # while t == self:
-            #     t = threads[random.randint(0, threadnum-1)]
-            # out(self.name, 'wakes up', t.name)
-            # t.resume()
-            r.dec()
-            self.suspend()
-        except ThreadInterrupt as e:
-            out('caught', repr(e), 'straightening up...')
-        out('exiting thread.')
+            for _ in range(5):
+                with lock:
+                    out(self.ident, 'doing someting')
+                    waitabout(0.001)
+        except ThreadInterrupt:
+            out('leaving thread', self.ident)
 
 
 def _interrupt_blocking_threads(*args):
@@ -1841,30 +1883,22 @@ def _interrupt_blocking_threads(*args):
         t.interrupt()
     main_thread().interrupt()
 
-signals.add_handler(signals.SIGINT, _interrupt_blocking_threads)
+
+
+signals._add_handler(signals.SIGINT, _interrupt_blocking_threads, signals.__systerm)
 
 threads = [MyThread(name=str(i)) for i in range(threadnum)]
 
-def hello():
+def hello(*_):
     out('hello')
 
+
 if __name__ == '__main__':
-    # sleep(2)
-    # l.acquire()
-    # l.acquire()
-    # t = Timer(.1, function=hello, repeat='inf')
-
-    # t.start()
-    # t.join()
-    r.acquire()
-    for t in threads:
-        t.start()
-    out('all threads should sleep now...')
-    sleep(1)
-    out('waking up the first...')
-    sleep(1)
-
-    # threads[0].resume()
-    r.wait()
-    r.release()
-    out('main thread exiting.')
+    try:
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+    except KeyboardInterrupt:
+        sys.stdout.flush()
+        print 'bye.'
