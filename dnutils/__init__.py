@@ -1,6 +1,5 @@
-import _version
+from _version import __version__
 
-__version__ = _version.__version__
 __author__ = 'Daniel Nyga'
 
 from .debug import out, stop, trace, stoptrace
