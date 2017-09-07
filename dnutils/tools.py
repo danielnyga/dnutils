@@ -113,7 +113,10 @@ class edict(dict):
     {'x': 'z', 'c': 5}
     '''
     def __init__(self, d=None, default=None, recursive=False):
-        dict.__init__(self, ifnone(d, {}))
+        if d is None:
+            dict.__init__(self)
+        else:
+            dict.__init__(self, dict(d))
         self._default = default
         if recursive:
             self._recurse()
@@ -142,10 +145,10 @@ class edict(dict):
 
     def _recurse(self):
         for key, value in self.items():
-            if type(value) is dict:
-                self[key] = edict(value, default=self._default, recursive=True)
             if type(value) is list:
-                self[key] = [edict(v) if isinstance(v, dict) else v for v in value]
+                self[key] = [edict(v) if hasattr(v, '__getitem__') else v for v in value]
+            elif hasattr(value, '__getitem__'):  #type(value) is dict:
+                self[key] = edict(value, default=self._default, recursive=True)
 
     @staticmethod
     def _todict(d, recursive=True):
