@@ -28,6 +28,16 @@ def ifnot(if_, else_, transform=None):
         else: return if_
 
 
+def ifstr(arg, transform):
+    '''
+    Returns ``transform(arg)`` if ``arg`` is a string, or returns ``arg``, otherwise
+    :param arg:
+    :param transform:
+    :return:
+    '''
+    return transform(arg) if type(arg) is str else arg
+
+
 def allnone(it):
     '''Returns True iff all elements in the iterable ``it`` are ``None``, and ``False`` otherwise.'''
     return not ([1 for e in it if e is not None])
