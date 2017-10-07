@@ -51,9 +51,23 @@ for it checks for Boolean truth instead of ``None``:
 
 .. autofunction:: dnutils.tools.allnot
 
+.. autofunction:: dnutils.tools.ifstr
+
+
 List Convenience Functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. autofunction:: dnutils.tools.idxif
+
+.. autofunction:: dnutils.tools.first
+
+.. autofunction:: dnutils.tools.last
+
+
+Other Tools
+~~~~~~~~~~~
+
+.. autofunction:: dnutils.tools.LinearScale
 
 
 Enhanced Dictionary Functionality
