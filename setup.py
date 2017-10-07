@@ -4,20 +4,15 @@ from distutils.core import setup
 import sys
 import _version
 
-if sys.version_info[0] == 2:
-    base_dir = 'python2.7'
-elif sys.version_info[0] == 3:
-    base_dir = 'python3.5'
-
-
+__basedir__ = _version.__basedir__
 __version__ = _version.__version__
 
 
 def basedir(name):
-    return os.path.join(base_dir, name)
+    return os.path.join(__basedir__, name)
 
 
-with open(os.path.join(os.path.dirname(__file__), base_dir, 'requirements.txt'), 'r') as f:
+with open(os.path.join(os.path.dirname(__file__), __basedir__, 'requirements.txt'), 'r') as f:
     requirements = [l.strip() for l in f.readlines() if l.strip()]
 
 setup(
