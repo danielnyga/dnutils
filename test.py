@@ -11,7 +11,7 @@ from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, log
 
 import unittest
 
-from dnutils.logs import expose, inspect, ExposureEmptyError
+from dnutils.logs import expose, inspect, exposure, ExposureEmptyError
 from dnutils.stats import Gaussian
 
 loggers({
@@ -135,9 +135,12 @@ class ExposureTest(unittest.TestCase):
         self.assertEqual(inspect('/vars/myexposure'), ['a', 'b', 'c'])
         expose('/vars/myexposure2', 2)
         self.assertEqual(inspect('/vars/myexposure2'), 2)
-        expose('/vars/myexposure2', 2).close()
+        expose('/vars/myexposure2', 2)
+        # close the exposure
+        exposure('/vars/myexposure2', 'w').close()
         with self.assertRaises(ExposureEmptyError):
             inspect('/vars/myexposure2')
+
 
 if __name__ == '__main__':
     print('Welcome to dnutils version %s.' % version)

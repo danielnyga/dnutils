@@ -34,6 +34,7 @@ _expose_basedir = '.exposure'
 _exposures = None
 _writelockname = '.%s.lock'
 
+_MAX_EXPOSURES = 9999
 
 def tmpdir():
     '''
@@ -109,6 +110,12 @@ class ExposureManager:
         atexit.register(_cleanup_exposures)
         return e
 
+    def get(self, name, mode=None):
+        for e in self.exposures.values():
+            if e.name == name:
+                if mode is None or e.mode == mode:
+                    return e
+
     def close(self):
         for name, exposure in self.exposures.items():
             exposure.close()
@@ -141,7 +148,7 @@ def expose(name, *data):
         if len(data) == 1:
             data = data[0]
         e.dump(data)
-    return e
+    return e.name
 
 
 def inspect(name):
@@ -160,6 +167,19 @@ def inspect(name):
     return e.load()
 
 
+def exposure(name, mode=None):
+    '''
+    Get the exposure object with the given name.
+    :param name:
+    :return:
+    '''
+    global _exposures
+    if _exposures is None:
+        _exposures = ExposureManager()
+    e = _exposures.get(name, mode)
+    return e
+
+
 class Exposure:
     '''
     This class implements a data structure for easy and lightweight exposure of
@@ -168,6 +188,20 @@ class Exposure:
     '''
 
     def __init__(self, name, mode='w', basedir=None):
+        if sum([1 for c in name if c == '#']):
+            raise ValueError('exposure name may contain maximally one hash symbol: "%s"' % name)
+        counter = 1
+        while 1:
+            name_ = name.replace('#', str(counter))
+            try:
+                self._init(name_, mode, basedir)
+            except ExposureLockedError as e:
+                if '#' not in name or counter >= _MAX_EXPOSURES: raise
+                counter += 1
+            else:
+                break
+
+    def _init(self, name, mode, basedir):
         if basedir is None:
             basedir = tmpdir()
         basedir = os.path.join(basedir, _expose_basedir)
