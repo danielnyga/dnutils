@@ -299,15 +299,16 @@ class LinearScale(object):
         >>> scale(1.5)
         138.0
     '''
-    def __init__(self, fromi, toi):
-        self._from = fromi
-        self._to = toi
-        self._fromrange = fromi[1] - fromi[0]
-        self._torange = toi[1] - toi[0]
+    def __init__(self, fromint, toint, strict=True):
+        self._from = fromint
+        self._to = toint
+        self._fromrange = fromint[1] - fromint[0]
+        self._torange = toint[1] - toint[0]
+        self.strict = strict
 
     def _apply(self, value):
-        if not self._from[0] <= value <= self._from[1]:
-            raise ValueError('Must be in [%f, %f]' % self._from)
+        if self.strict and not self._from[0] <= value <= self._from[1]:
+            raise ValueError('value out of range [%s, %s], got %s' % (self._from[0], self._from[1], value))
         v = float((value-self._from[0])) / self._fromrange
         return v * self._torange + self._to[0]
 
@@ -316,10 +317,5 @@ class LinearScale(object):
 
 
 if __name__ == '__main__':
-    d = edict({'a': [{'b': {'c': 'hello'}}, {'b': {'c': 'world'}}]}, recursive=1)
-    print(d.xpath('a/[0]/b/c'))
-    d = edict(default=list)
-    d['a'].append('first item')
-    d.pprint()
-    d.set_xpath('a/b/c', 'hello, world!', force=True)
-    d.pprint()
+    scale = LinearScale([0, 100], [0, 1], False)
+    print(scale(-50))

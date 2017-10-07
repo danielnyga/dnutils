@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 import time
 import colored
@@ -11,6 +10,7 @@ import unittest
 
 from dnutils.logs import expose, inspect, ExposureEmptyError
 from dnutils.stats import Gaussian
+from dnutils.tools import LinearScale
 
 loggers({
     'default': newlogger(logs.console),
@@ -124,6 +124,19 @@ class IteratorTest(unittest.TestCase):
         self.assertEqual(first(gen()), 0)
         self.assertEqual(first(gen(), str, 'no elements'), '0')
         self.assertEqual(first([], str, 'no elements'), 'no elements')
+
+
+class ScaleTest(unittest.TestCase):
+
+    def test_linearscale(self):
+        scale = LinearScale([0, 100], [0, 1])
+        self.assertEqual(scale(50), .5)
+        with self.assertRaises(ValueError):
+            scale(-50)
+            scale(150)
+        scale.strict = False
+        self.assertEqual(scale(-50), -.5)
+        self.assertEqual(scale(150), 1.5)
 
 
 class ExposureTest(unittest.TestCase):
