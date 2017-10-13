@@ -5,6 +5,7 @@ import time
 import colored
 import numpy as np
 
+import dnutils
 from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, loggers, newlogger, logs, edict, ifnone, \
     ifnot, allnone, allnot, first, __version__ as version
 
@@ -150,8 +151,7 @@ class ExposureTest(unittest.TestCase):
         self.assertEqual(inspect('/vars/myexposure2'), 2)
         expose('/vars/myexposure2', 2)
         # close the exposure
-        exposure('/vars/myexposure2', 'w').close()
-        with self.assertRaises(ExposureEmptyError):
+        with exposure('/vars/myexposure2'):
             inspect('/vars/myexposure2')
 
 
