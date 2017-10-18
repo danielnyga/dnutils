@@ -61,6 +61,12 @@ class EDictTest(unittest.TestCase):
         self.assertEqual(d.get('c', 3), 3)
         self.assertDictEqual(d, {'a': 1, 'b': 2})
 
+    def test_projection(self):
+        d = edict({'one': 1, 'two': 2})
+        d_ = edict(d)
+        self.assertDictEqual(d.project('one'), {'one': 1})
+        self.assertDictEqual(d, d_)
+
 
 class ConditionalTest(unittest.TestCase):
 

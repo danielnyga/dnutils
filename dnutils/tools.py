@@ -230,6 +230,14 @@ class edict(dict):
         from pprint import pprint
         pprint(self)
 
+    def project(self, *keys):
+        '''
+        Returns a copy of this edict that contains only the pairs whose key is in ``keys``.
+        :param keys:
+        :return:
+        '''
+        return edict({k: v for k, v in self.items() if k in keys})
+
 
 class RStorage(edict, object):
     '''
@@ -326,5 +334,5 @@ class LinearScale(object):
 
 
 if __name__ == '__main__':
-    scale = LinearScale([0, 100], [0, 1], False)
-    print(scale(-50))
+    d = edict({1:2,2:3})
+    print(d.project(2))
