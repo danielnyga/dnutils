@@ -231,6 +231,14 @@ class edict(dict):
         from pprint import pprint
         pprint(self)
 
+    def project(self, *keys):
+        '''
+        Returns a copy of this edict that contains only the pairs whose key is in ``keys``.
+        :param keys:
+        :return:
+        '''
+        return edict({k: v for k, v in self.iteritems() if k in keys})
+
 
 class RStorage(edict, object):
     '''
