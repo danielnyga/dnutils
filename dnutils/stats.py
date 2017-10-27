@@ -207,7 +207,7 @@ def print_stopwatches():
     recoreded so far.
     :return:
     '''
-    headers = ('name', 'avg', 'std')
+    headers = ('name', 'avg', 'std', 'calls')
     data = [[w.tojson()[h] for h in headers] for w in _watches.values()]
     print(tabulate(data, headers))
 
@@ -249,5 +249,9 @@ class StopWatch:
     def std(self):
         return np.sqrt(self.dist.cov)
 
+    @property
+    def calls(self):
+        return self.dist.numsamples
+
     def tojson(self):
-        return {'name': self.name, 'avg': self.avg, 'std': self.std}
+        return {'name': self.name, 'avg': self.avg, 'std': self.std, 'calls': self.calls}
