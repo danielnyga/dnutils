@@ -1,5 +1,5 @@
 setup.cfg
 setup.py
-README.md
+include README.md
 recursive-include python2.7 *
 recursive-include python3.5 *
