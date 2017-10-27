@@ -12,7 +12,7 @@ from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, log
 import unittest
 
 from dnutils.logs import expose, inspect, exposure, ExposureEmptyError
-from dnutils.stats import Gaussian
+from dnutils.stats import Gaussian, stopwatch, print_stopwatches, stopwatches, get_stopwatch
 from dnutils.tools import LinearScale
 
 loggers({
@@ -118,6 +118,21 @@ class GaussianTest(unittest.TestCase):
         g = Gaussian(data=data)
         self.assertAlmostEqual(mu, float(g.mean), 1)
         self.assertAlmostEqual(sigma, np.sqrt(float(g.cov)), 1)
+
+
+class StopWatchTest(unittest.TestCase):
+
+    def test_watch(self):
+        mean = .2
+        std = .05
+        times = np.random.normal(mean, std, 100)
+        for t in times:
+            with stopwatch('/test'):
+                dnutils.threads.sleep(t)
+        print_stopwatches()
+        w = get_stopwatch('/test')
+        self.assertAlmostEqual(w.avg, mean, 1, 'means differ too much:\n%s\n!=\n%s' % (w.avg, mean))
+        self.assertAlmostEqual(w.std, std, 1, 'stddevs differ too much:\n%s\n!=\n%s' % (w.std, std))
 
 
 class IteratorTest(unittest.TestCase):

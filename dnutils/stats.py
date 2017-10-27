@@ -3,10 +3,12 @@ Created on Jan 5, 2017
 
 @author: nyga
 '''
+import time
+
 try:
     import numpy as np
     from tabulate import tabulate
-    from dnutils import ifnone
+    from dnutils import ifnone, Lock
 except ImportError:
     pass
 else:
@@ -15,7 +17,7 @@ else:
         A Gaussian distribution that can be incrementally updated with new samples
         '''
 
-        def __init__(self, mean=None, cov=None, data=None):
+        def __init__(self, mean=None, cov=None, data=None, keepsamples=False):
             '''
             Creates a new Gaussian distribution.
             :param mean:    the mean of the Gaussian. May be a scalar (univariante) or an array (multivariate).
@@ -25,9 +27,13 @@ else:
             '''
             self.mean = mean
             self.cov = cov
-            self.samples = []
+            self.samples = 0 if not keepsamples else []
             if data is not None:
                 self.estimate(data)
+
+        @property
+        def numsamples(self):
+            return len(self.samples) if type(self.samples) is list else self.samples
 
         @property
         def mean(self):
@@ -72,12 +78,15 @@ else:
                 self._cov = np.zeros(shape=(len(x), len(x)))
             else:
                 assert len(x) == len(self._mean) and self._cov.shape == (len(x), len(x))
-            n = len(self.samples)
+            n = self.numsamples
             oldmean = np.array(self._mean)
             oldcov = np.array(self._cov)
             for i, (m, d) in enumerate(zip(self._mean, x)):
                 self._mean[i] = ((n * m) + d) / (n + 1)
-            self.samples.append(x)
+            if type(self.samples) is list:
+                self.samples.append(x)
+            else:
+                self.samples += 1
             if n > 0:
                 for j in range(self.dim):
                     for k in range(self.dim):
@@ -128,3 +137,117 @@ else:
             except ValueError:
                 args = 'undefined'
             return '<Gaussian %s>' % args
+
+
+class Timespan:
+    '''
+    A ``Timespan`` implements the context manager protocol
+    of a stopwatch
+    '''
+
+    def __init__(self, watch):
+        self.watch = watch
+        self.start = None
+        self.stop = None
+        self.events = {} # maps timestamp -> string
+
+    @property
+    def duration(self):
+        return self.stop - self.start
+
+    def event(self, description):
+        self.event[time.time()] = description
+
+    def __enter__(self):
+        self.start = time.time()
+        return self
+
+    def __exit__(self, *args):
+        self.stop = time.time()
+        self.watch.add(self)
+
+
+_watches = {}
+_watchlock = Lock()
+
+
+def stopwatch(name):
+    '''
+    Returns a ``Timespan`` object representing a slice of the
+    execution.
+
+    :param name:
+    :return:
+    '''
+    with _watchlock:
+        if name not in _watches:
+            _watches[name] = StopWatch(name)
+        watch = _watches[name]
+    return Timespan(watch)
+
+
+def stopwatches():
+    yield from _watches.values()
+
+
+def get_stopwatch(name):
+    '''
+    Returns the stop watch with the given name, or ``None``, fif no
+    such stop watch exists.
+
+    :param name:
+    :return:
+    '''
+    return _watches.get(name)
+
+
+def print_stopwatches():
+    '''
+    Prints to the console a tabular of all stop watches that have been
+    recoreded so far.
+    :return:
+    '''
+    headers = ('name', 'avg', 'std')
+    data = [[w.tojson()[h] for h in headers] for w in _watches.values()]
+    print(tabulate(data, headers))
+
+
+def reset_stopwatches():
+    '''
+    Delete all stopwatches so far.
+    '''
+    global _watches
+    _watches = {}
+
+
+class StopWatch:
+    '''
+    Easy-to-use and lightweight stop watch to measure execution time
+    of code passages. Supports Python's the context manager protocol.
+
+    A stop watch is characterized by its name that the user can choose freely,
+    and a Gaussian distribution that is maintained collecting a sufficient
+    statistics about execution times.
+
+    Stop watches are thread-safe.
+    '''
+
+    def __init__(self, name):
+        self.name = name
+        self.dist = Gaussian()
+        self._lock = Lock()
+
+    def add(self, ts):
+        with self._lock:
+            self.dist.update(ts.duration)
+
+    @property
+    def avg(self):
+        return self.dist.mean
+
+    @property
+    def std(self):
+        return np.sqrt(self.dist.cov)
+
+    def tojson(self):
+        return {'name': self.name, 'avg': self.avg, 'std': self.std}
