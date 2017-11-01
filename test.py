@@ -6,12 +6,12 @@ import colored
 import numpy as np
 
 from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, loggers, newlogger, logs, edict, ifnone, \
-    ifnot, allnone, allnot, first, sleep
+    ifnot, allnone, allnot, first, sleep, __version__ as version
 
 import unittest
 
-from dnutils.logs import expose, inspect, exposure, ExposureEmptyError
-from dnutils.stats import Gaussian, stopwatch, print_stopwatches, stopwatches, get_stopwatch
+from dnutils.logs import expose, inspect, exposure
+from dnutils.stats import Gaussian, stopwatch, print_stopwatches, get_stopwatch
 from dnutils.tools import LinearScale
 
 loggers({
@@ -177,6 +177,7 @@ class ExposureTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+    print('Welcome to dnutils version %s.' % version)
     logger = getlogger('results', logs.DEBUG)
     logger.info('Initialized. Running all tests...')
     wait()
