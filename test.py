@@ -6,7 +6,7 @@ import colored
 import numpy as np
 
 from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, loggers, newlogger, logs, edict, ifnone, \
-    ifnot, allnone, allnot, first
+    ifnot, allnone, allnot, first, sleep
 
 import unittest
 
@@ -100,16 +100,16 @@ class ConditionalTest(unittest.TestCase):
 class GaussianTest(unittest.TestCase):
 
     def test_multivariate(self):
-        mean = np.array([5., 4.])
-        cov = np.array([[1., -0.3], [-0.3, 1.]])
-        data = np.random.multivariate_normal(mean, cov, size=50000)
+        mean = [5., 4.]
+        cov = [[1., -0.3], [-0.3, 1.]]
+        data = np.random.multivariate_normal(np.array(mean), np.array(cov), size=50000)
         gauss = Gaussian()
         for d in data:
             gauss.update(d)
         for e1, e2 in zip(gauss.mean, mean):
             self.assertAlmostEqual(e1, e2, 1, 'means differ too much:\n%s\n!=\n%s' % (mean, gauss.mean))
-        for e1, e2 in zip(np.nditer(gauss.cov), np.nditer(cov)):
-            self.assertAlmostEqual(e1, e2, 1, 'covariances differ too much: %s != %s' % (cov, gauss.cov))
+        for e1, e2 in zip(np.nditer(np.array(gauss.cov)), np.nditer(np.array(cov))):
+            self.assertAlmostEqual(round(e1, 1), e2, 1, 'covariances differ too much: %s != %s' % (cov, gauss.cov))
 
     def test_univariate(self):
         mu, sigma = 0.5, 0.1
@@ -127,7 +127,7 @@ class StopWatchTest(unittest.TestCase):
         times = np.random.normal(mean, std, 100)
         for t in times:
             with stopwatch('/test'):
-                dnutils.threads.sleep(t)
+                sleep(t)
         print_stopwatches()
         w = get_stopwatch('/test')
         self.assertAlmostEqual(w.avg, mean, 1, 'means differ too much:\n%s\n!=\n%s' % (w.avg, mean))
@@ -170,9 +170,8 @@ class ExposureTest(unittest.TestCase):
         expose('/vars/myexposure2', 2)
         self.assertEqual(inspect('/vars/myexposure2'), 2)
         expose('/vars/myexposure2', 2)
-        # close the exposure
-        exposure('/vars/myexposure2', 'w').close()
-        with self.assertRaises(ExposureEmptyError):
+        # use the exposure as a file lock
+        with exposure('/vars/myexposure2'):
             inspect('/vars/myexposure2')
 
 
