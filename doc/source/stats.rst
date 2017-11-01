@@ -55,6 +55,36 @@ And multivariate Gaussians can be processed:
     -0.298396   0.993321
     ---------  --------->
 
+Stop Watches
+~~~~~~~~~~~~
 
+A statistical tool that makes use of the incremental Gaussians is the :class:`dnutils.stats.StopWatch`
+class that provides very lightweight means for profiling code sections.
 
+Its use is extremely simple. Just put the code you want to measure inside a ``with`` block: ::
+
+    with stopwatch('/watches/critical_section'):
+        # here comes the code you want measure
+
+A toy example is the following: ::
+
+    from dnutils.stats import stopwatch, print_stopwatches
+    mean = .2
+    std = .05
+    times = np.random.normal(mean, std, 100)
+    for t in times:
+        with stopwatch('/test'):
+            dnutils.sleep(t)
+    print_stopwatches()
+
+This snippet takes 100 measurements of random waiting times, which are sampled from
+a Gaussian distribution with mean ``.2`` and standard deviation ``.05``. :func:`dnutils.stats.print_stopwatches`
+prints a table with all collected stop watches: ::
+
+    name         avg        std    calls
+    ------  --------  ---------  -------
+    /test   0.203796  0.0527497      100
+
+`dnutils`' stop watch implementation is threadsafe, i.e. the measured code sections may also be
+run concurrently in separate threads.
 

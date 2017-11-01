@@ -15,6 +15,11 @@ def basedir(name):
 with open(os.path.join(os.path.dirname(__file__), __basedir__, 'requirements.txt'), 'r') as f:
     requirements = [l.strip() for l in f.readlines() if l.strip()]
 
+
+def read(fname):
+    return open(os.path.join(os.path.dirname(__file__), fname)).read()
+
+
 setup(
     name='dnutils',
     packages=['dnutils', 'dnutils._version'],
@@ -24,6 +29,7 @@ setup(
     },
     version=__version__,
     description='A collection of convenience tools for everyday Python programming',
+    long_description=read('README.md'),
     author='Daniel Nyga',
     author_email='daniel.nyga@t-online.de',
     url='https://spritinio.de/dnutils',
