@@ -177,7 +177,7 @@ class ExposureTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-    print('Welcome to dnutils version %s.' % version)
+
     logger = getlogger('results', logs.DEBUG)
     logger.info('Initialized. Running all tests...')
     wait()
