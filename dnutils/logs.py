@@ -258,8 +258,10 @@ class Exposure:
                 timeout = .5
             ret = None
             while ret is None and not interrupted():
-                ret = self.flock.acquire(timeout, fail_when_locked=False)
-                if not blocking: break
+                try:
+                    ret = self.flock.acquire(timeout, fail_when_locked=False)
+                except portalocker.LockException:
+                    if not blocking: break
             self.counter += 1
             return ret is not None
 
