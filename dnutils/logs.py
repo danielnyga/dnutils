@@ -6,6 +6,7 @@ import tempfile
 
 import atexit
 import traceback
+import warnings
 
 import colored
 
@@ -258,10 +259,12 @@ class Exposure:
                 timeout = .5
             ret = None
             while ret is None and not interrupted():
-                try:
-                    ret = self.flock.acquire(timeout, fail_when_locked=False)
-                except portalocker.LockException:
-                    if not blocking: break
+                with warnings.catch_warnings():
+                    try:
+                        ret = self.flock.acquire(timeout, fail_when_locked=False)
+                    except portalocker.LockException:
+                        if not blocking: break
+                    warnings.simplefilter("ignore")
             self.counter += 1
             return ret is not None
 
