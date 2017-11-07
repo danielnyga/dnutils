@@ -11,7 +11,6 @@ import colored
 import datetime
 
 from dnutils import ifnone
-from dnutils.debug import _caller
 from dnutils.threads import RLock, Lock, interrupted
 from dnutils.tools import jsonify
 
@@ -27,7 +26,6 @@ CRITICAL = logging.CRITICAL
 
 FileHandler = logging.FileHandler
 StreamHandler = logging.StreamHandler
-
 
 
 _expose_basedir = '.exposure'
@@ -69,8 +67,8 @@ def active_exposures(name='/*'):
     :return:
     '''
     tmp = tmpdir()
-    rootdir = os.path.join(tmp, _expose_basedir)
-    rootdir = ifnone(exposure_dir, rootdir)
+    rootdir = ifnone(exposure_dir, tmp)
+    rootdir = os.path.join(rootdir, _expose_basedir)
     for root, dirs, files in os.walk(rootdir):
         for f in files:
             if re.match(r'\.\w+\.lock', f):  # skip file locks
@@ -104,7 +102,8 @@ class ExposureManager:
 
     def __init__(self, basedir=None):
         self.exposures = {}
-        self.basedir = ifnone(basedir, tmpdir())
+        basedir = ifnone(basedir, tmpdir())
+        self.basedir = os.path.join(basedir, _expose_basedir)
         atexit.register(_cleanup_exposures)
         self._lock = Lock()
 
@@ -170,8 +169,11 @@ def inspect(name):
     if name in _exposures.exposures:
         e = _exposures.exposures[name]
     else:
-        e = _exposures.create(name)
-    return e.load()
+        e = _exposures.get(name)
+    try:
+        return e.load()
+    except IOError:
+        return None
 
 
 def exposure(name):
@@ -255,8 +257,10 @@ class Exposure:
                 timeout = .5
             ret = None
             while ret is None and not interrupted():
-                ret = self.flock.acquire(timeout, fail_when_locked=False)
-                if not blocking: break
+                try:
+                    ret = self.flock.acquire(timeout, fail_when_locked=False)
+                except portalocker.LockException:
+                    if not blocking: break
             self.counter += 1
             return ret is not None
 
@@ -300,7 +304,7 @@ class Exposure:
         :return:
         '''
         with self._lock:
-            os.remove(self.filepath)
+            # os.remove(self.filepath)
             os.remove(self.flockname)
 
     def load(self, block=1):
