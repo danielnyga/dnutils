@@ -303,8 +303,10 @@ class Exposure:
         :return:
         '''
         with self._lock:
-            os.remove(self.filepath)
-            os.remove(self.flockname)
+            try:
+                os.remove(self.filepath)
+                os.remove(self.flockname)
+            except FileNotFoundError: pass
 
     def load(self, block=1):
         '''
