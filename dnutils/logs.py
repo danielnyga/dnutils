@@ -105,7 +105,7 @@ class ExposureManager:
         basedir = ifnone(basedir, tmpdir())
         self.basedir = os.path.join(basedir, _expose_basedir)
         atexit.register(_cleanup_exposures)
-        self._lock = Lock()
+        self._lock = RLock()
 
     def _create(self, name):
         '''
@@ -304,8 +304,10 @@ class Exposure:
         :return:
         '''
         with self._lock:
-            # os.remove(self.filepath)
-            os.remove(self.flockname)
+            try:
+                # os.remove(self.filepath)
+                os.remove(self.flockname)
+            except IOError: pass
 
     def load(self, block=1):
         '''
