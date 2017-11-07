@@ -304,7 +304,7 @@ class Exposure:
         '''
         with self._lock:
             try:
-                os.remove(self.filepath)
+                # os.remove(self.filepath)
                 os.remove(self.flockname)
             except FileNotFoundError: pass
 
