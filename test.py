@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import time
+from multiprocessing.pool import Pool
 
 import colored
 import numpy as np
 
 from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, loggers, newlogger, logs, edict, ifnone, \
-    ifnot, allnone, allnot, first, sleep, __version__ as version
+    ifnot, allnone, allnot, first, sleep, __version__ as version, waitabout
 
 import unittest
 
@@ -161,6 +162,15 @@ class ScaleTest(unittest.TestCase):
         self.assertEqual(scale(-50), -.5)
         self.assertEqual(scale(150), 1.5)
 
+def exposure_proc(*_):
+    for _ in range(10):
+        waitabout(1)
+        # use the exposure as a file lock
+        with exposure('/vars/myexposure'):
+            n = inspect(expose('/vars/myexposure'))
+            expose('/vars/myexposure', n + 1)
+            assert n + 1 == inspect(expose('/vars/myexposure'))
+
 
 class ExposureTest(unittest.TestCase):
 
@@ -169,10 +179,11 @@ class ExposureTest(unittest.TestCase):
         self.assertEqual(inspect('/vars/myexposure'), ['a', 'b', 'c'])
         expose('/vars/myexposure2', 2)
         self.assertEqual(inspect('/vars/myexposure2'), 2)
-        expose('/vars/myexposure2', 2)
-        # use the exposure as a file lock
-        with exposure('/vars/myexposure2'):
-            inspect('/vars/myexposure2')
+        expose('/vars/myexposure', 0)
+        pool = Pool(4)
+        pool.map(exposure_proc, [[] for _ in range(5)])
+        pool.close()
+        pool.join()
 
 
 if __name__ == '__main__':
