@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import time
+import traceback
 from multiprocessing.pool import Pool
 
 import colored
@@ -162,14 +163,19 @@ class ScaleTest(unittest.TestCase):
         self.assertEqual(scale(-50), -.5)
         self.assertEqual(scale(150), 1.5)
 
+
 def exposure_proc(*_):
     for _ in range(10):
-        waitabout(1)
         # use the exposure as a file lock
-        with exposure('/vars/myexposure'):
-            n = inspect(expose('/vars/myexposure'))
-            expose('/vars/myexposure', n + 1)
-            assert n + 1 == inspect(expose('/vars/myexposure'))
+        try:
+            with exposure('/vars/myexposure'):
+                n = inspect(expose('/vars/myexposure'))
+                waitabout(.1)
+                expose('/vars/myexposure', n + 1)
+                waitabout(.1)
+                assert n + 1 == inspect(expose('/vars/myexposure'))
+        except:
+            traceback.print_exc()
 
 
 class ExposureTest(unittest.TestCase):
@@ -179,9 +185,10 @@ class ExposureTest(unittest.TestCase):
         self.assertEqual(inspect('/vars/myexposure'), ['a', 'b', 'c'])
         expose('/vars/myexposure2', 2)
         self.assertEqual(inspect('/vars/myexposure2'), 2)
+        self.assertIsNone(inspect('/var/myexposure'))
         expose('/vars/myexposure', 0)
         pool = Pool(4)
-        pool.map(exposure_proc, [[] for _ in range(5)])
+        pool.map(exposure_proc, [[] for _ in range(4)])
         pool.close()
         pool.join()
 
