@@ -5,16 +5,15 @@ import re
 import tempfile
 
 import atexit
-import traceback
 
 import colored
 
 import datetime
 
-from dnutils import ifnone
-from dnutils.debug import _caller, out
-from dnutils.threads import sleep, RLock, interrupted, Lock
-from dnutils.tools import jsonify
+from .tools import ifnone
+from .debug import _caller
+from .threads import RLock, interrupted, Lock
+from .tools import jsonify
 
 import portalocker
 FLock = portalocker.Lock
