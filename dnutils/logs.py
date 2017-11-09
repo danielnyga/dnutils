@@ -5,6 +5,7 @@ import re
 import tempfile
 
 import atexit
+import warnings
 
 import colored
 
@@ -37,9 +38,11 @@ _MAX_EXPOSURES = 9999
 
 exposure_dir = None
 
+
 def set_exposure_dir(d):
     global exposure_dir
     exposure_dir = d
+
 
 def tmpdir():
     '''
@@ -66,8 +69,8 @@ def active_exposures(name='/*'):
     :return:
     '''
     tmp = tmpdir()
-    rootdir = os.path.join(tmp, _expose_basedir)
-    rootdir = ifnone(exposure_dir, rootdir)
+    rootdir = ifnone(exposure_dir, tmp)
+    rootdir = os.path.join(rootdir, _expose_basedir)
     for root, dirs, files in os.walk(rootdir):
         for f in files:
             if re.match(r'\.\w+\.lock', f):  # skip file locks
@@ -101,9 +104,10 @@ class ExposureManager:
 
     def __init__(self, basedir=None):
         self.exposures = {}
-        self.basedir = ifnone(basedir, tmpdir())
+        basedir = ifnone(basedir, tmpdir())
+        self.basedir = os.path.join(basedir, _expose_basedir)
         atexit.register(_cleanup_exposures)
-        self._lock = Lock()
+        self._lock = RLock()
 
     def _create(self, name):
         '''
@@ -167,8 +171,11 @@ def inspect(name):
     if name in _exposures.exposures:
         e = _exposures.exposures[name]
     else:
-        e = _exposures.create(name)
-    return e.load()
+        e = _exposures.get(name)
+    try:
+        return e.load()
+    except IOError:
+        return None
 
 
 def exposure(name):
@@ -252,8 +259,12 @@ class Exposure:
                 timeout = .5
             ret = None
             while ret is None and not interrupted():
-                ret = self.flock.acquire(timeout, fail_when_locked=False)
-                if not blocking: break
+                with warnings.catch_warnings():
+                    try:
+                        ret = self.flock.acquire(timeout, fail_when_locked=False)
+                    except portalocker.LockException:
+                        if not blocking: break
+                    warnings.simplefilter("ignore")
             self.counter += 1
             return ret is not None
 
@@ -297,8 +308,10 @@ class Exposure:
         :return:
         '''
         with self._lock:
-            os.remove(self.filepath)
-            os.remove(self.flockname)
+            try:
+                # os.remove(self.filepath)
+                os.remove(self.flockname)
+            except FileNotFoundError: pass
 
     def load(self, block=1):
         '''

@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 
 import time
+from multiprocessing.pool import Pool
 
 import colored
 import numpy as np
 
-import dnutils
 from dnutils import out, stop, trace, getlogger, ProgressBar, StatusMsg, bf, loggers, newlogger, logs, edict, ifnone, \
-    ifnot, allnone, allnot, first, __version__ as version
+    ifnot, allnone, allnot, first, sleep, __version__ as version, waitabout
 
 import unittest
 
-from dnutils.logs import expose, inspect, exposure, ExposureEmptyError
-from dnutils.stats import Gaussian, stopwatch, print_stopwatches, stopwatches, get_stopwatch
+from dnutils.logs import expose, inspect, exposure
+from dnutils.stats import Gaussian, stopwatch, print_stopwatches, get_stopwatch
 from dnutils.tools import LinearScale
 
 loggers({
@@ -101,16 +101,16 @@ class ConditionalTest(unittest.TestCase):
 class GaussianTest(unittest.TestCase):
 
     def test_multivariate(self):
-        mean = np.array([5., 4.])
-        cov = np.array([[1., -0.3], [-0.3, 1.]])
-        data = np.random.multivariate_normal(mean, cov, size=50000)
+        mean = [5., 4.]
+        cov = [[1., -0.3], [-0.3, 1.]]
+        data = np.random.multivariate_normal(np.array(mean), np.array(cov), size=50000)
         gauss = Gaussian()
         for d in data:
             gauss.update(d)
         for e1, e2 in zip(gauss.mean, mean):
             self.assertAlmostEqual(e1, e2, 1, 'means differ too much:\n%s\n!=\n%s' % (mean, gauss.mean))
-        for e1, e2 in zip(np.nditer(gauss.cov), np.nditer(cov)):
-            self.assertAlmostEqual(e1, e2, 1, 'covariances differ too much: %s != %s' % (cov, gauss.cov))
+        for e1, e2 in zip(np.nditer(np.array(gauss.cov)), np.nditer(np.array(cov))):
+            self.assertAlmostEqual(round(float(e1), 1), e2, 1, 'covariances differ too much: %s != %s' % (cov, gauss.cov))
 
     def test_univariate(self):
         mu, sigma = 0.5, 0.1
@@ -128,7 +128,7 @@ class StopWatchTest(unittest.TestCase):
         times = np.random.normal(mean, std, 100)
         for t in times:
             with stopwatch('/test'):
-                dnutils.threads.sleep(t)
+                sleep(t)
         print_stopwatches()
         w = get_stopwatch('/test')
         self.assertAlmostEqual(w.avg, mean, 1, 'means differ too much:\n%s\n!=\n%s' % (w.avg, mean))
@@ -162,6 +162,15 @@ class ScaleTest(unittest.TestCase):
         self.assertEqual(scale(-50), -.5)
         self.assertEqual(scale(150), 1.5)
 
+def exposure_proc(*_):
+    for _ in range(10):
+        waitabout(1)
+        # use the exposure as a file lock
+        with exposure('/vars/myexposure'):
+            n = inspect(expose('/vars/myexposure'))
+            expose('/vars/myexposure', n + 1)
+            assert n + 1 == inspect(expose('/vars/myexposure'))
+
 
 class ExposureTest(unittest.TestCase):
 
@@ -170,10 +179,11 @@ class ExposureTest(unittest.TestCase):
         self.assertEqual(inspect('/vars/myexposure'), ['a', 'b', 'c'])
         expose('/vars/myexposure2', 2)
         self.assertEqual(inspect('/vars/myexposure2'), 2)
-        expose('/vars/myexposure2', 2)
-        # close the exposure
-        with exposure('/vars/myexposure2'):
-            inspect('/vars/myexposure2')
+        expose('/vars/myexposure', 0)
+        pool = Pool(4)
+        pool.map(exposure_proc, [[] for _ in range(5)])
+        pool.close()
+        pool.join()
 
 
 if __name__ == '__main__':
@@ -215,6 +225,8 @@ if __name__ == '__main__':
         time.sleep(.5)
     bar.finish()
 
+    logger.info('testing the', bf(StatusMsg), '(you should see 5 "OK" and 5 "ERROR" messages)')
+    wait()
     for i in range(20):
         bar = StatusMsg('this is a Linux-style status bar (%.2d)...' % (i+1))
         bar.status = StatusMsg.OK
