@@ -141,7 +141,7 @@ def _cleanup_exposures(*_):
 #     _exposures = ExposureManager(basedir)
 
 
-def expose(name, *data):
+def expose(name, *data, ignore_errors=False):
     '''
     Expose the data ``data`` under the exposure name ``name``.
     :param name:
@@ -155,7 +155,7 @@ def expose(name, *data):
     if data:
         if len(data) == 1:
             data = data[0]
-        e.dump(data)
+        e.dump(data, ignore_errors=ignore_errors)
     return e.name
 
 
@@ -280,7 +280,7 @@ class Exposure:
     def __exit__(self, *args):
         self.release()
 
-    def dump(self, item):
+    def dump(self, item, ignore_errors=False):
         '''
         Write the item to the exposure.
 
@@ -288,7 +288,7 @@ class Exposure:
         :return:
         '''
         with self._lock:
-            jsondata = jsonify(item)
+            jsondata = jsonify(item, ignore_errors=ignore_errors)
             gotit = self.acquire(blocking=False)
             if not gotit:
                 raise ExposureLockedError()

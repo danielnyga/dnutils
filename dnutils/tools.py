@@ -288,7 +288,7 @@ def rstorify(e):
     else: return e
 
         
-def jsonify(item):
+def jsonify(item, ignore_errors=False):
     '''
     Recursively construct a json representation of the argument ``item``.
     :param item:
@@ -296,14 +296,18 @@ def jsonify(item):
     '''
     if hasattr(item, 'json'):
         return item.json
+    elif hasattr(item, 'tojson'):
+        return item.tojson()
     elif isinstance(item, dict):
-        return {str(k): jsonify(v) for k, v in item.items()}
+        return {str(k): jsonify(v, ignore_errors=ignore_errors) for k, v in item.items()}
     elif type(item) in (list, tuple):
-        return [jsonify(e) for e in item]
+        return [jsonify(e, ignore_errors=ignore_errors) for e in item]
     elif isinstance(item, (int, float, bool, str, type(None))):
         return item
     else:
-        raise TypeError('object of type "%s" is not jsonifiable: %s' % (type(item), repr(item)))
+        if not ignore_errors:
+            raise TypeError('object of type "%s" is not jsonifiable: %s' % (type(item), repr(item)))
+        else: return '%s (NOT JSONIFIABLE)' % str(item)
 
 
 class LinearScale(object):
