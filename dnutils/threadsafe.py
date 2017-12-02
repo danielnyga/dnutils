@@ -5,7 +5,7 @@
 from dnutils import threads
 from collections import deque
 from heapq import heappush, heappop
-from time import monotonic as time
+from time import time
 
 __all__ = ['Empty', 'Full', 'Queue', 'PriorityQueue', 'LifoQueue']
 
