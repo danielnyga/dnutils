@@ -48,7 +48,7 @@ class Gaussian(object):
 
     @mean.setter
     def mean(self, mu):
-        if mu is not None and hasattr(mu, '__len__'):
+        if mu is not None and not hasattr(mu, '__len__'):
             self._mean = [mu]
         else:
             self._mean = mu
@@ -62,7 +62,7 @@ class Gaussian(object):
 
     @cov.setter
     def cov(self, cov):
-        if cov is not None and hasattr(cov, '__len__'):
+        if cov is not None and not hasattr(cov, '__len__'):
             self._cov = [[cov]]
         else:
             self._cov = cov
