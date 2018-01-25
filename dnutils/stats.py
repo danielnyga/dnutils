@@ -6,6 +6,7 @@ Created on Jan 5, 2017
 import time
 from math import sqrt
 
+from dnutils import out
 from .threads import Lock
 from tabulate import tabulate
 
@@ -48,7 +49,7 @@ class Gaussian(object):
 
     @mean.setter
     def mean(self, mu):
-        if mu is not None and hasattr(mu, '__len__'):
+        if mu is not None and not hasattr(mu, '__len__'):
             self._mean = [mu]
         else:
             self._mean = mu
@@ -62,7 +63,7 @@ class Gaussian(object):
 
     @cov.setter
     def cov(self, cov):
-        if cov is not None and hasattr(cov, '__len__'):
+        if cov is not None and not hasattr(cov, '__len__'):
             self._cov = [[cov]]
         else:
             self._cov = cov
@@ -144,6 +145,24 @@ class Gaussian(object):
         except ValueError:
             args = 'undefined'
         return '<Gaussian %s>' % args
+
+    def kldiv(self, g2):
+        '''
+        Compute the KL-divergence of two multivariate Gaussian distributions.
+
+        :param g1: instance of ``dnutils.Gaussian``
+        :param g2: instance of ``dnutils.Gaussian``
+        :return:
+        '''
+        import numpy as np
+        mu1 = np.array(self._mean)
+        mu2 = np.array(g2._mean)
+        sigma1 = np.array(self._cov)
+        sigma2 = np.array(g2._cov)
+        det1 = np.linalg.det(sigma1)
+        det2 = np.linalg.det(sigma2)
+        res = np.log(det2 / det1) - self.dim + np.matrix.trace(np.linalg.inv(sigma2).dot(sigma1)) + ((mu2 - mu1).dot(np.linalg.inv(sigma2).dot((mu2 - mu1))))
+        return res * .5
 
 
 class Timespan:
@@ -262,3 +281,4 @@ class StopWatch:
 
     def tojson(self):
         return {'name': self.name, 'avg': self.avg, 'std': self.std, 'calls': self.calls}
+
