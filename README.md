@@ -18,3 +18,9 @@ Changelog 0.2.8
 
 * import error "monotonic" in threadsafe on python 2
 * import threads.Timer in __init__.py
+* fixed internal representation in Gaussian
+
+Release Notes
+-------------
+
+* ``expose`` has option ``ignore_errors`` in case objects to be serialized are not jsonifiable.
