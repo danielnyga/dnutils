@@ -161,7 +161,15 @@ class Gaussian(object):
         sigma2 = np.array(g2._cov)
         det1 = np.linalg.det(sigma1)
         det2 = np.linalg.det(sigma2)
-        res = np.log(det2 / det1) - self.dim + np.matrix.trace(np.linalg.inv(sigma2).dot(sigma1)) + ((mu2 - mu1).dot(np.linalg.inv(sigma2).dot((mu2 - mu1))))
+        if all([d < 1e-12 for d in (det1, det2)]):
+            if tuple(mu1) == tuple(mu2):
+                return 0
+            else:
+                return float('inf')
+        elif any([d < 1e-12 for d in (det1, det2)]):
+            return float('inf')
+        res = np.log(det2 / det1) - self.dim + np.matrix.trace(np.linalg.inv(sigma2).dot(sigma1)) + (
+        (mu2 - mu1).dot(np.linalg.inv(sigma2).dot((mu2 - mu1))))
         return res * .5
 
 
