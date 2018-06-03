@@ -13,6 +13,14 @@ TODOs
 
 * change access rights in exposures so they can be accessed system wide
 
+Changes
+=======
+
+* fixed signals on Windows machines.
+
+Changelog 0.2.9
+===============
+
 Changelog 0.2.8
 ===============
 
