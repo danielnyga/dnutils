@@ -95,7 +95,7 @@ def last(it, transform=None):
     return idxif(it, -1, transform=transform)
 
 
-sqbrpattern = re.compile(r'\[(\d+)\]')
+sqbrpattern = re.compile(r'\[(-?\d+)\]')
 
 
 class edict(dict):
