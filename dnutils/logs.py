@@ -26,7 +26,28 @@ WARNING = logging.WARNING
 ERROR = logging.ERROR
 CRITICAL = logging.CRITICAL
 
-FileHandler = logging.FileHandler
+
+class FileHandler(logging.FileHandler):
+    def __init__(self, filename, mode='a', encoding=None, delay=False):
+        logging.FileHandler.__init__(self, filename, mode=mode, encoding=encoding, delay=delay)
+        self.timeformatstr = '%Y-%m-%d %H:%M:%S'
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            stream = self.stream
+            stream.write(msg)
+            stream.write(self.terminator)
+            self.flush()
+        except Exception:
+            self.handleError(record)
+
+    def format(self, record):
+        return '{} - {} - {}'.format(datetime.datetime.fromtimestamp(record.created).strftime(self.timeformatstr),
+                                     record.levelname,
+                                     ' '.join(record.msg.split('\n')))
+
+
 StreamHandler = logging.StreamHandler
 
 
