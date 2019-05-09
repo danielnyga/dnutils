@@ -45,7 +45,7 @@ class FileHandler(logging.FileHandler):
     def format(self, record):
         return '{} - {} - {}'.format(datetime.datetime.fromtimestamp(record.created).strftime(self.timeformatstr),
                                      record.levelname,
-                                     ' '.join(record.msg.split('\n')))
+                                     ' '.join(' '.join(map(str, record.msg)).split('\n')))
 
 
 StreamHandler = logging.StreamHandler
@@ -357,22 +357,22 @@ class _LoggerAdapter(object):
         return _caller(4)
 
     def critical(self, *args, **kwargs):
-        self._logger.critical(' '.join(map(str, args)), extra=kwargs)
+        self._logger.critical(args, extra=kwargs)
 
     def exception(self, *args, **kwargs):
-        self._logger.exception(' '.join(map(str, args)), extra=kwargs)
+        self._logger.exception(args, extra=kwargs)
 
     def error(self, *args, **kwargs):
-        self._logger.error(' '.join(map(str, args)), extra=kwargs)
+        self._logger.error(args, extra=kwargs)
 
     def warning(self, *args, **kwargs):
-        self._logger.warning(' '.join(map(str, args)), extra=kwargs)
+        self._logger.warning(args, extra=kwargs)
 
     def info(self, *args, **kwargs):
-        self._logger.info(' '.join(map(str, args)), extra=kwargs)
+        self._logger.info(args, extra=kwargs)
 
     def debug(self, *args, **kwargs):
-        self._logger.debug(' '.join(map(str, args)), extra=kwargs)
+        self._logger.debug(args, extra=kwargs)
 
     def __getattr__(self, attr):
         return getattr(self._logger, attr)
@@ -473,7 +473,7 @@ class ColoredFormatter(logging.Formatter):
         maxlen = max(map(len, logging._levelToName.values()))
         header = '%s - %s - ' % (datetime.datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S'),
                                  colored.stylize(record.levelname.center(maxlen, ' '), levelstr))
-        return header + colored.stylize(('\n' + ' ' * len(cleanstr(header))).join(record.msg.split('\n')) + '\n',
+        return header + colored.stylize(('\n' + ' ' * len(cleanstr(header))).join(' '.join(map(str, record.msg)).split('\n')) + '\n',
                                         ColoredFormatter.msgmap[record.levelno])
 
 
