@@ -12,7 +12,7 @@ def basedir(name):
     return os.path.join(__basedir__, name)
 
 
-with open(os.path.join(os.path.dirname(__file__), __basedir__, 'requirements.txt'), 'r') as f:
+with open(os.path.join(os.path.dirname(__file__), 'requirements.txt'), 'r') as f:
     requirements = [l.strip() for l in f.readlines() if l.strip()]
 
 
