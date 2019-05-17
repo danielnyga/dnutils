@@ -3,3 +3,5 @@ setup.py
 include README.md
 recursive-include python2.7 *
 recursive-include python3.5 *
+prune python3.5/dnutils/_version
+prune python2.7/dnutils/_version
