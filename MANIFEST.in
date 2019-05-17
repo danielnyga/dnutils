@@ -1,5 +1,6 @@
-setup.cfg
-setup.py
+include setup.cfg
+include setup.py
+include requirements.txt
 include README.md
 recursive-include python2.7 *
 recursive-include python3.5 *
