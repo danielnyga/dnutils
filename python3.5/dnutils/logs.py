@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import sys
 import tempfile
 
 import atexit
@@ -488,18 +489,25 @@ else:
         '''
         Log handler for logging into a MongoDB database.
         '''
-        def __init__(self, collection):
+        def __init__(self, collection, checkkeys=True):
             '''
             Create the handler.
 
             :param collection:  An accessible collection in a pymongo database.
             '''
             logging.Handler.__init__(self)
+            self.checkkeys = checkkeys
             self.coll = collection
             self.setFormatter(MongoFormatter())
 
         def emit(self, record):
-            self.coll.insert(self.format(record))
+            try:
+                self.coll.insert(self.format(record), check_keys=self.checkkeys)
+            except pymongo.errors.ServerSelectionTimeoutError:
+                sys.stderr.write('WARNING: Could not establish connection to mongo client to write log. Message:\n'
+                                 '{} - {} - {}\n'.format(datetime.datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S'),
+                                                         record.levelname,
+                                                         ' '.join([str(s) for s in record.msg])))
 
 
     class MongoFormatter(logging.Formatter):
