@@ -12,8 +12,9 @@ def basedir(name):
     return os.path.join(__basedir__, name)
 
 
-with open(os.path.join(os.path.dirname(__file__), __basedir__, 'requirements.txt'), 'r') as f:
-    requirements = [l.strip() for l in f.readlines() if l.strip()]
+def requirements():
+    with open('requirements.txt', 'r') as f:
+        return [l.strip() for l in f.readlines() if l.strip()]
 
 
 def read(fname):
@@ -58,5 +59,5 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
     ],
-    install_requires=requirements,
+    install_requires=requirements(),
 )
