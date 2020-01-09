@@ -1115,6 +1115,7 @@ class Thread:
         self._blocked_by = None
         self._blocklock = Lock()
         self._handlerlock = Lock()
+        self._interrupt = False
         # sys.stderr is not stored in the class like
         # sys.exc_info since it can be changed between instances
         self._stderr = _sys.stderr
