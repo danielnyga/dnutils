@@ -1115,7 +1115,6 @@ class Thread:
         self._blocked_by = None
         self._blocklock = Lock()
         self._handlerlock = Lock()
-        self._interrupt = False
         # sys.stderr is not stored in the class like
         # sys.exc_info since it can be changed between instances
         self._stderr = _sys.stderr
@@ -1646,10 +1645,10 @@ class _DummyEvent:
     def wait(self): pass
 
 
-class _DummyThread(Thread):
+class _MyDummyThread(Thread):
 
     def __init__(self):
-        Thread.__init__(self, name=_newname("Dummy-%d"), daemon=True)
+        super(Thread, self).__init__(name=_newname("Dummy-%d"), daemon=True)
 
         self._started = _DummyEvent()
         self._set_ident()
@@ -1675,7 +1674,7 @@ def current_thread():
     try:
         return _active[get_ident()]
     except KeyError:
-        return _DummyThread()
+        return _MyDummyThread()
 
 currentThread = current_thread
 
@@ -1764,7 +1763,8 @@ except ImportError:
 
 
 def interrupted():
-    if current_thread()._interrupt:
+    t = current_thread()
+    if hasattr(t, '_interrupt') and t._interrupt:
         raise ThreadInterrupt()
 
 
