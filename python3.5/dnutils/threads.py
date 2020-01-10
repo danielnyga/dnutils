@@ -1648,7 +1648,7 @@ class _DummyEvent:
 class _MyDummyThread(Thread):
 
     def __init__(self):
-        super(Thread, self).__init__(name=_newname("Dummy-%d"), daemon=True)
+        super(_MyDummyThread, self).__init__(name=_newname("Dummy-%d"), daemon=True)
 
         self._started = _DummyEvent()
         self._set_ident()
