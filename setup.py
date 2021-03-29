@@ -2,10 +2,13 @@ import os
 from distutils.core import setup
 
 import sys
-import _version
 
-__basedir__ = _version.__basedir__
-__version__ = _version.__version__
+sys.path.append(os.path.join('src', 'dnutils'))
+
+import version
+
+__basedir__ = version.__basedir__
+__version__ = version.__version__
 
 
 def basedir(name):
@@ -23,10 +26,10 @@ def read(fname):
 
 setup(
     name='dnutils',
-    packages=['dnutils', 'dnutils._version'],
+    packages=['dnutils'],
     package_dir={
         'dnutils': basedir('dnutils'),
-        'dnutils._version': '_version',
+        # 'dnutils.version': 'version',
     },
     version=__version__,
     description='A collection of convenience tools for everyday Python programming',
@@ -54,10 +57,9 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
     ],
     install_requires=requirements(),
 )
