@@ -1,3 +1,4 @@
+import platform
 import signal as signal_
 import threading
 from collections import defaultdict
@@ -6,44 +7,51 @@ __usrreg = defaultdict(list)
 __sysinit = defaultdict(list)
 __systerm = defaultdict(list)
 
-SIGINT = signal_.SIGINT
-SIGTERM = signal_.SIGTERM
-SIGKILL = signal_.SIGKILL
-SIGABRT = signal_.SIGABRT
-SIGALRM = signal_.SIGALRM
-SIGBUS = signal_.SIGBUS
-SIGCHLD = signal_.SIGCHLD
-SIGCLD = signal_.SIGCLD
-SIGCONT = signal_.SIGCONT
-SIGFPE = signal_.SIGFPE
-SIGHUP = signal_.SIGHUP
-SIGILL = signal_.SIGILL
-SIGINT = signal_.SIGINT
-SIGIO = signal_.SIGIO
-SIGIOT = signal_.SIGIO
-SIGKILL = signal_.SIGKILL
-SIGPIPE = signal_.SIGPIPE
-SIGPOLL = signal_.SIGPOLL
-SIGPROF = signal_.SIGPROF
-SIGPWR = signal_.SIGPWR
-SIGQUIT = signal_.SIGQUIT
-SIGRTMAX = signal_.SIGRTMAX
-SIGRTMIN = signal_.SIGRTMIN
-SIGSEGV = signal_.SIGSEGV
-SIGSTOP = signal_.SIGSTOP
-SIGSYS = signal_.SIGSYS
-SIGTERM = signal_.SIGTERM
-SIGTRAP = signal_.SIGTRAP
-SIGTSTP = signal_.SIGTSTP
-SIGTTIN = signal_.SIGTTIN
-SIGTTOU = signal_.SIGTTOU
-SIGURG = signal_.SIGURG
-SIGUSR1 = signal_.SIGUSR1
-SIGUSR2 = signal_.SIGUSR2
-SIGVTALRM = signal_.SIGVTALRM
-SIGWINCH = signal_.SIGWINCH
-SIGXCPU = signal_.SIGXCPU
-SIGXFSZ = signal_.SIGXFSZ
+if platform.platform() == 'Windows':
+    SIGABRT = signal_.SIGABRT
+    SIGFPE = signal_.SIGFPE
+    SIGILL = signal_.SIGILL
+    SIGSEGV = signal_.SIGSEGV
+    SIGTERM = signal_.SIGTERM
+else:
+    SIGINT = signal_.SIGINT
+    SIGTERM = signal_.SIGTERM
+    SIGKILL = signal_.SIGKILL
+    SIGABRT = signal_.SIGABRT
+    SIGALRM = signal_.SIGALRM
+    SIGBUS = signal_.SIGBUS
+    SIGCHLD = signal_.SIGCHLD
+    SIGCLD = signal_.SIGCLD
+    SIGCONT = signal_.SIGCONT
+    SIGFPE = signal_.SIGFPE
+    SIGHUP = signal_.SIGHUP
+    SIGILL = signal_.SIGILL
+    SIGINT = signal_.SIGINT
+    SIGIO = signal_.SIGIO
+    SIGIOT = signal_.SIGIO
+    SIGKILL = signal_.SIGKILL
+    SIGPIPE = signal_.SIGPIPE
+    SIGPOLL = signal_.SIGPOLL
+    SIGPROF = signal_.SIGPROF
+    SIGPWR = signal_.SIGPWR
+    SIGQUIT = signal_.SIGQUIT
+    SIGRTMAX = signal_.SIGRTMAX
+    SIGRTMIN = signal_.SIGRTMIN
+    SIGSEGV = signal_.SIGSEGV
+    SIGSTOP = signal_.SIGSTOP
+    SIGSYS = signal_.SIGSYS
+    SIGTERM = signal_.SIGTERM
+    SIGTRAP = signal_.SIGTRAP
+    SIGTSTP = signal_.SIGTSTP
+    SIGTTIN = signal_.SIGTTIN
+    SIGTTOU = signal_.SIGTTOU
+    SIGURG = signal_.SIGURG
+    SIGUSR1 = signal_.SIGUSR1
+    SIGUSR2 = signal_.SIGUSR2
+    SIGVTALRM = signal_.SIGVTALRM
+    SIGWINCH = signal_.SIGWINCH
+    SIGXCPU = signal_.SIGXCPU
+    SIGXFSZ = signal_.SIGXFSZ
 
 _lock = threading.Lock()
 

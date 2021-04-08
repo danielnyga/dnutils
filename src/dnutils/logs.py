@@ -2,19 +2,20 @@ import json
 import logging
 import os
 import re
+import sys
 import tempfile
 
 import atexit
-import traceback
+import warnings
 
 import colored
 
 import datetime
 
-from dnutils import ifnone
-from dnutils.debug import _caller
-from dnutils.threads import sleep, RLock
-from dnutils.tools import jsonify
+from .tools import ifnone
+from .debug import _caller
+from .threads import RLock, interrupted, Lock
+from .tools import jsonify
 
 import portalocker
 FLock = portalocker.Lock
@@ -26,13 +27,43 @@ WARNING = logging.WARNING
 ERROR = logging.ERROR
 CRITICAL = logging.CRITICAL
 
-FileHandler = logging.FileHandler
+
+class FileHandler(logging.FileHandler):
+    def __init__(self, filename, mode='a', encoding=None, delay=False):
+        logging.FileHandler.__init__(self, filename, mode=mode, encoding=encoding, delay=delay)
+        self.timeformatstr = '%Y-%m-%d %H:%M:%S'
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            stream = self.stream
+            stream.write(msg)
+            stream.write(self.terminator)
+            self.flush()
+        except Exception:
+            self.handleError(record)
+
+    def format(self, record):
+        return '{} - {} - {}'.format(datetime.datetime.fromtimestamp(record.created).strftime(self.timeformatstr),
+                                     record.levelname,
+                                     ' '.join(' '.join(map(str, record.msg)).split('\n')))
+
+
 StreamHandler = logging.StreamHandler
 
 
 _expose_basedir = '.exposure'
 _exposures = None
 _writelockname = '.%s.lock'
+
+_MAX_EXPOSURES = 9999
+
+exposure_dir = None
+
+
+def set_exposure_dir(d):
+    global exposure_dir
+    exposure_dir = d
 
 
 def tmpdir():
@@ -60,7 +91,8 @@ def active_exposures(name='/*'):
     :return:
     '''
     tmp = tmpdir()
-    rootdir = os.path.join(tmp, _expose_basedir)
+    rootdir = ifnone(exposure_dir, tmp)
+    rootdir = os.path.join(rootdir, _expose_basedir)
     for root, dirs, files in os.walk(rootdir):
         for f in files:
             if re.match(r'\.\w+\.lock', f):  # skip file locks
@@ -94,36 +126,44 @@ class ExposureManager:
 
     def __init__(self, basedir=None):
         self.exposures = {}
-        self.basedir = ifnone(basedir, tmpdir())
+        basedir = ifnone(basedir, tmpdir())
+        self.basedir = os.path.join(basedir, _expose_basedir)
+        atexit.register(_cleanup_exposures)
+        self._lock = RLock()
 
-    def create(self, name, mode):
+    def _create(self, name):
         '''
-        Create a new exposure with name ``name`` and mode ``mode``.
+        Create a new exposure with name ``name``.
 
         :param name:
-        :param mode:
         :return:
         '''
-        e = Exposure(name, mode, self.basedir)
-        self.exposures[(name, mode)] = e
-        atexit.register(_cleanup_exposures)
+        e = Exposure(name, self.basedir)
+        self.exposures[name] = e
         return e
 
-    def close(self):
-        for name, exposure in self.exposures.items():
-            exposure.close()
+    def get(self, name):
+        with self._lock:
+            if not name in self.exposures:
+                self.exposures[name] = Exposure(name, self.basedir)
+            return self.exposures.get(name)
+
+    def delete(self):
+        with self._lock:
+            for name, exposure in self.exposures.items():
+                exposure.delete()
 
 
 def _cleanup_exposures(*_):
-    _exposures.close()
+    _exposures.delete()
 
 
-def exposures(basedir='.'):
-    global _exposures
-    _exposures = ExposureManager(basedir)
+# def exposures(basedir='.'):
+#     global _exposures
+#     _exposures = ExposureManager(basedir)
 
 
-def expose(name, *data):
+def expose(name, *data, ignore_errors=False):
     '''
     Expose the data ``data`` under the exposure name ``name``.
     :param name:
@@ -132,16 +172,13 @@ def expose(name, *data):
     '''
     global _exposures
     if _exposures is None:
-        _exposures = ExposureManager()
-    if (name, 'w') in _exposures.exposures:
-        e = _exposures.exposures[(name, 'w')]
-    else:
-        e = _exposures.create(name, 'w')
+        _exposures = ExposureManager(exposure_dir)
+    e = _exposures.get(name)
     if data:
         if len(data) == 1:
             data = data[0]
-        e.dump(data)
-    return e
+        e.dump(data, ignore_errors=ignore_errors)
+    return e.name
 
 
 def inspect(name):
@@ -152,12 +189,28 @@ def inspect(name):
     '''
     global _exposures
     if _exposures is None:
-        _exposures = ExposureManager()
-    if (name, 'r') in _exposures.exposures:
-        e = _exposures.exposures[(name, 'r')]
+        _exposures = ExposureManager(exposure_dir)
+    if name in _exposures.exposures:
+        e = _exposures.exposures[name]
     else:
-        e = _exposures.create(name, 'r')
-    return e.load()
+        e = _exposures.get(name)
+    try:
+        return e.load()
+    except IOError:
+        return None
+
+
+def exposure(name):
+    '''
+    Get the exposure object with the given name.
+    :param name:
+    :return:
+    '''
+    global _exposures
+    if _exposures is None:
+        _exposures = ExposureManager(exposure_dir)
+    e = _exposures.get(name)
+    return e
 
 
 class Exposure:
@@ -167,10 +220,27 @@ class Exposure:
     wrapper around a regular file, which is being json data written to and read from.
     '''
 
-    def __init__(self, name, mode='w', basedir=None):
+    def __init__(self, name, basedir=None):
+        self._lock = RLock()
+        if sum([1 for c in name if c == '#']):
+            raise ValueError('exposure name may contain maximally one hash symbol: "%s"' % name)
+        self.flock = None
+        self.counter = 0
+        counter = 1
+        while 1:
+            name_ = name.replace('#', str(counter))
+            self._init(name_, basedir)
+            if not self.acquire(blocking=False):
+                if '#' not in name or counter >= _MAX_EXPOSURES:
+                    raise ExposureLockedError()
+                counter += 1
+            else:
+                self.release()
+                break
+
+    def _init(self, name, basedir):
         if basedir is None:
-            basedir = tmpdir()
-        basedir = os.path.join(basedir, _expose_basedir)
+            basedir = os.path.join(tmpdir(), _expose_basedir)
         if not os.path.exists(basedir):
             os.mkdir(basedir)
         dirs = list(os.path.split(name))
@@ -184,28 +254,55 @@ class Exposure:
             fullpath = os.path.join(fullpath, d)
             if not os.path.exists(fullpath):
                 os.mkdir(fullpath)
-        self.fullpath = os.path.abspath(fullpath)
-        exposure_file = os.path.join(self.fullpath, fname)
+        self.abspath = os.path.abspath(fullpath)
+        self.filepath = os.path.join(self.abspath, fname)
+        self.filename = fname
+        self.flockname = os.path.join(self.abspath, _writelockname % self.filename)
         # acquire the lock if write access is required
-        self.flock = None
-        try:
-            if mode == 'w':
-                flockname = os.path.join(self.fullpath, _writelockname % fname)
-                self.flock = FLock(flockname, timeout=0, fail_when_locked=True)
-                self.flock.acquire()
-        except portalocker.LockException as e:
-            raise ExposureLockedError from e
+        self.flock = FLock(self.flockname, timeout=0, fail_when_locked=True)
         self.name = name
-        self.mode = mode
-        if mode == 'w':
-            mode = 'w+'
-        try:
-            self.file = open(exposure_file, mode)
-        except FileNotFoundError as e:
-            raise ExposureEmptyError() from e
-        self._lock = RLock()
 
-    def dump(self, item):
+    def acquire(self, blocking=True, timeout=None):
+        '''
+        Acquire the exposure.
+
+        An exposure may only be acquired by one process at a time and acts like a re-entrant lock.
+        :param blocking:
+        :param timeout:
+        :return:
+        '''
+        with self._lock:
+            if self.counter > 0:  # exposure can be re-entered
+                self.counter += 1
+                return True
+            if not blocking:
+                timeout = 0
+            elif blocking and timeout is None:
+                timeout = .5
+            ret = None
+            while ret is None and not interrupted():
+                with warnings.catch_warnings():
+                    try:
+                        ret = self.flock.acquire(timeout, fail_when_locked=False)
+                    except portalocker.LockException:
+                        if not blocking: break
+                    warnings.simplefilter("ignore")
+            self.counter += 1
+            return ret is not None
+
+    def release(self):
+        with self._lock:
+            self.counter -= 1
+            if self.counter == 0:
+                self.flock.release()
+
+    def __enter__(self):
+        self.acquire()
+
+    def __exit__(self, *args):
+        self.release()
+
+    def dump(self, item, ignore_errors=False):
         '''
         Write the item to the exposure.
 
@@ -213,27 +310,30 @@ class Exposure:
         :return:
         '''
         with self._lock:
-            if self.mode != 'w':
-                raise TypeError('exposure is read-only.')
-            jsondata = jsonify(item)
-            self.file.truncate(0)
-            self.file.seek(0)
-            json.dump(jsondata, self.file, indent=4)
-            self.file.write('\n')
-            self.file.flush()
+            jsondata = jsonify(item, ignore_errors=ignore_errors)
+            gotit = self.acquire(blocking=False)
+            if not gotit:
+                raise ExposureLockedError()
+            try:
+                with open(self.filepath, 'w+') as f:
+                    f.truncate(0)
+                    f.seek(0)
+                    json.dump(jsondata, f, indent=4)
+                    f.write('\n')
+                    f.flush()
+            finally:
+                self.release()
 
-    def close(self):
+    def delete(self):
         '''
         Close this exposure.
         :return:
         '''
         with self._lock:
-            if not self.file.closed:
-                if self.mode == 'w':
-                    self.file.truncate(0)
-                    self.file.flush()
-                    self.file.close()
-                    self.flock.release()
+            try:
+                # os.remove(self.filepath)
+                os.remove(self.flockname)
+            except FileNotFoundError: pass
 
     def load(self, block=1):
         '''
@@ -244,11 +344,9 @@ class Exposure:
         :return:
         '''
         with self._lock:
-            self.file.seek(0)
-            if self.file.read(1) == '':
-                raise ExposureEmptyError()
-            self.file.seek(0)
-            return json.load(self.file)
+            with open(self.filepath, 'r') as f:
+                f.seek(0)
+                return json.load(f)
 
 
 class _LoggerAdapter(object):
@@ -260,22 +358,22 @@ class _LoggerAdapter(object):
         return _caller(4)
 
     def critical(self, *args, **kwargs):
-        self._logger.critical(' '.join(map(str, args)), extra=kwargs)
+        self._logger.critical(args, extra=kwargs)
 
     def exception(self, *args, **kwargs):
-        self._logger.exception(' '.join(map(str, args)), extra=kwargs)
+        self._logger.exception(args, extra=kwargs)
 
     def error(self, *args, **kwargs):
-        self._logger.error(' '.join(map(str, args)), extra=kwargs)
+        self._logger.error(args, extra=kwargs)
 
     def warning(self, *args, **kwargs):
-        self._logger.warning(' '.join(map(str, args)), extra=kwargs)
+        self._logger.warning(args, extra=kwargs)
 
     def info(self, *args, **kwargs):
-        self._logger.info(' '.join(map(str, args)), extra=kwargs)
+        self._logger.info(args, extra=kwargs)
 
     def debug(self, *args, **kwargs):
-        self._logger.debug(' '.join(map(str, args)), extra=kwargs)
+        self._logger.debug(args, extra=kwargs)
 
     def __getattr__(self, attr):
         return getattr(self._logger, attr)
@@ -376,7 +474,7 @@ class ColoredFormatter(logging.Formatter):
         maxlen = max(map(len, logging._levelToName.values()))
         header = '%s - %s - ' % (datetime.datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S'),
                                  colored.stylize(record.levelname.center(maxlen, ' '), levelstr))
-        return header + colored.stylize(('\n' + ' ' * len(cleanstr(header))).join(record.msg.split('\n')) + '\n',
+        return header + colored.stylize(('\n' + ' ' * len(cleanstr(header))).join(' '.join(map(str, record.msg)).split('\n')) + '\n',
                                         ColoredFormatter.msgmap[record.levelno])
 
 
@@ -391,18 +489,25 @@ else:
         '''
         Log handler for logging into a MongoDB database.
         '''
-        def __init__(self, collection):
+        def __init__(self, collection, checkkeys=True):
             '''
             Create the handler.
 
             :param collection:  An accessible collection in a pymongo database.
             '''
             logging.Handler.__init__(self)
+            self.checkkeys = checkkeys
             self.coll = collection
             self.setFormatter(MongoFormatter())
 
         def emit(self, record):
-            self.coll.insert(self.format(record))
+            try:
+                self.coll.insert(self.format(record), check_keys=self.checkkeys)
+            except pymongo.errors.ServerSelectionTimeoutError:
+                sys.stderr.write('WARNING: Could not establish connection to mongo client to write log. Message:\n'
+                                 '{} - {} - {}\n'.format(datetime.datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S'),
+                                                         record.levelname,
+                                                         ' '.join([str(s) for s in record.msg])))
 
 
     class MongoFormatter(logging.Formatter):
