@@ -354,7 +354,7 @@ class _LoggerAdapter(object):
         self._logger = logger
         self._logger.findCaller = self._caller
 
-    def _caller(self, _):
+    def _caller(self, *_):
         return _caller(4)
 
     def critical(self, *args, **kwargs):
