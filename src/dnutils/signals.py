@@ -1,4 +1,3 @@
-import platform
 import signal as signal_
 import threading
 from collections import defaultdict
@@ -6,6 +5,8 @@ from collections import defaultdict
 __usrreg = defaultdict(list)
 __sysinit = defaultdict(list)
 __systerm = defaultdict(list)
+
+import platform
 
 if platform.platform() == 'Windows':
     SIGABRT = signal_.SIGABRT
