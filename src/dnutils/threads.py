@@ -2,7 +2,7 @@ import random
 
 import sys
 
-from dnutils import out, ifnone, signals
+from dnutils import out, ifnone
 
 '''Large parts of this module are taken from the original Python threading
 module.'''
