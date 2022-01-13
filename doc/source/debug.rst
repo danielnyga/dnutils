@@ -98,3 +98,13 @@ Stack Traces
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+
+
+Colored Console Debug Messages
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: dnutils.debug.ok
+
+.. autofunction:: dnutils.debug.warn
+
+.. autofunction:: dnutils.debug.err

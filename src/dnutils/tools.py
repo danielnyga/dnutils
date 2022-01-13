@@ -6,6 +6,19 @@ Created on May 22, 2017
 import re
 
 
+class UNICODE:
+    '''
+    A collection of Unicde symbols.
+    '''
+
+    CROSS = '\u00d7'
+    WARNING = '\u26a0'
+    CHECKMARK = '\u2713'
+
+    TRIANGLE_UP = '\u25B2 '
+    TRIANGLE_DOWN = '\u25BC '
+
+
 def ifnone(if_, else_, transform=None):
     '''Returns the condition ``if_`` iff it is not ``None``, or if a transformation is
     specified, ``transform(if_)``. Returns ``else_`` if the condition is ``None``.
@@ -48,6 +61,24 @@ def allnot(it):
     return not ([1 for e in it if bool(e) is True])
 
 
+def allin(c1, c2):
+    '''Check if all elements in the collection ``c1`` are also contained in the collection ``c2``, i.e.
+    if ``c1`` is a subset of ``c2``.'''
+    return set(c1).issubset(c2)
+
+
+def allequal(it):
+    '''
+    Return ``True`` iff all elements in ``it`` are equal wrt. to the __eq__ operator.
+    :param it:
+    :return:
+    '''
+    if not it:
+        return True
+    pivot = first(it)
+    return all([pivot == e for e in it])
+
+
 def idxif(it, idx, transform=None):
     '''Returns the element with the specified index of the iterable ``it``. If a ``transformation`` is specified,
     the result of the ``transformation`` will be returned applied to the element.
@@ -66,8 +97,10 @@ def idxif(it, idx, transform=None):
 def first(it, transform=None, else_=None):
     '''
     Returns the first element of the iterable ``it``, if it has any.
-    Returns ``None``, if ``it`` is ``None`` or ``it` does not contain any elements. If a transformation is
+    Returns ``None``, if ``it`` is ``None`` or ``it`` does not contain any elements. If a transformation is
     specified, the result of the transformation applied to the first element is returned.
+
+    :param else_:
     :param transform:
     :param it:
     :return:
@@ -85,6 +118,9 @@ def first(it, transform=None, else_=None):
     return else_
 
 
+fst = first
+
+
 def last(it, transform=None):
     '''
     Same as :func:`dnutils.tools.first`, but returns the last element.
@@ -93,6 +129,24 @@ def last(it, transform=None):
     :return:
     '''
     return idxif(it, -1, transform=transform)
+
+
+def mapstr(seq, format=None):
+    '''Convert the sequence ``seq`` into a list of strings by applying ``str`` to each of its elements.'''
+    return [format(e) for e in seq] if callable(format) else [ifnone(format, '%s') % (e,) for e in seq]
+
+
+def chunks(seq, n):
+    '''Iterate over chunks of the sequence ``seq`` of size ``n``.'''
+    return (seq[p:p + n] for p in range(0, len(seq), n))
+
+
+def pairwise(seq):
+    '''Iterate over all consecutive pairs in ``seq``.'''
+    for e in seq:
+        if 'prev' in locals():
+            yield prev, e
+        prev = e
 
 
 sqbrpattern = re.compile(r'\[(-?\d+)\]')
@@ -337,6 +391,75 @@ class LinearScale(object):
         return self._apply(value)
 
 
-if __name__ == '__main__':
-    d = edict({1:2,2:3})
-    print(d.project(2))
+def project(sequences, idx, error_on_too_short=True, error_on_none=True):
+    '''Project the ``idx``-th component from each list or tuple in ``sequences`` and return
+    a new list with the projected elements.
+    :param error_on_none:
+    :param error_on_too_short:
+    :param sequences:
+    :param idx:
+    :return:
+    '''
+    if error_on_too_short:
+        return [l[idx] if error_on_none else (l[idx] if l is not None else None) for l in sequences]
+    else:
+        return [l[idx] if l is not None and len(l) > idx else None for l in sequences]
+
+
+def isnone(arg):
+    '''
+    Returns ``True`` iff ``arg`` is ``None`` and ``False`` otherwise.
+
+    :param arg:
+    :return:
+    '''
+    return arg is None
+
+
+def is_not_none(arg):
+    '''
+    Returns ``True`` iff ``arg`` is ``None`` and ``False`` otherwise.
+
+    :param arg:
+    :return:
+    '''
+    return arg is not None
+
+
+def where(it, key=bool, value=True):
+    '''Returns a generator of all indices of elements ``e`` in the iterable ``it``
+    for wich ``key(e)`` evaluates to ``value``.
+
+    :param it: any iterable
+    :param key: evauluation function
+    :param value:
+    :return:
+    '''
+    for i, e in enumerate(it):
+        if key(e) == value:
+            yield i
+
+
+def where_not(it, key=bool, value=True):
+    '''Returns a generator of all indices of elements ``e`` in the iterable ``it``
+    for wich ``key(e)`` evaluates to ``False``.
+
+    :param it: any iterable
+    :param key: evauluation function
+    :param value:
+    :return:
+    '''
+    for i, e in enumerate(it):
+        if not key(e) == value:
+            yield i
+
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')

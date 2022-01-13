@@ -6,7 +6,11 @@ Created on May 22, 2017
 import traceback
 import sys
 import os
-from dnutils.tools import edict
+
+import colored
+
+from dnutils.console import style
+from dnutils.tools import edict, ifnone, UNICODE, mapstr
 
 
 def _currentframe():
@@ -16,6 +20,7 @@ def _currentframe():
     except:
         traceback.print_exc()
         return sys.exc_info()[2].tb_frame
+
 
 if hasattr(sys, '_getframe'): 
     _currentframe = lambda: sys._getframe(2)
@@ -84,3 +89,75 @@ def stoptrace(*args, **kwargs):
     having printed the stack trace.'''
     trace(**edict(kwargs) + {'tb': kwargs.get('tb', 1) + 1})
     stop(*args, **edict(kwargs) + {'tb': kwargs.get('tb', 1) + 1})
+
+
+def err(*args, sep=' ', end=None, flush=False, tb=1, bold=False):
+    '''Basic output function that prints a str-converted list of its arguments in red bold color to the stderr.
+
+        `out` forwards all arguments to the ordinary `print` function, but appends
+        the file and line of its call, so it can be found easier from the console.rst output.
+
+        :param bold:
+        :param tb:
+        :param sep:     string inserted between values, default a space.
+        :param end:     string appended after the last value, default a newline.
+        :param flush:   whether to forcibly flush the stream.
+
+        The keyword arguments are inherited from Python's :func:`print` function.
+        There is an additional keyword argument, ``tb``, which determines the depth of the
+        calling frame. It is not passed to :func:`print`.'''
+    rv = _caller(tb)
+
+    end = ifnone(end, ' [%s:%s]\n' % (os.path.basename(rv[0]), rv[1]))
+    print(style('%s %s%s' % (UNICODE.CROSS, sep.join(mapstr(args)), end),
+                color='red', bold=bold),
+          file=sys.stderr, sep=sep, flush=flush, end='')
+
+
+def warn(*args, sep=' ', end=None, flush=False, tb=1, bold=False):
+    '''Basic output function that prints a str-converted list of its arguments in yellow bold color to the stderr.
+
+        `out` forwards all arguments to the ordinary `print` function, but appends
+        the file and line of its call, so it can be found easier from the console.rst output.
+
+        :param bold:
+        :param tb:
+        :param sep:     string inserted between values, default a space.
+        :param end:     string appended after the last value, default a newline.
+        :param flush:   whether to forcibly flush the stream.
+
+        The keyword arguments are inherited from Python's :func:`print` function.
+        There is an additional keyword argument, ``tb``, which determines the depth of the
+        calling frame. It is not passed to :func:`print`.'''
+    rv = _caller(tb)
+
+    end = ifnone(end, ' [%s:%s]\n' % (os.path.basename(rv[0]), rv[1]))
+    print(style('%s %s%s' % (UNICODE.WARNING, sep.join(mapstr(args)), end),
+                color='yellow', bold=bold),
+          file=sys.stderr, sep=sep, flush=flush, end='')
+
+
+def ok(*args, sep=' ', end=None, flush=False, tb=1, bold=False):
+    '''Basic output function that prints a str-converted list of its arguments in green bold color to the stderr.
+
+        `out` forwards all arguments to the ordinary `print` function, but appends
+        the file and line of its call, so it can be found easier from the console.rst output.
+
+        :param bold:
+        :param tb:
+        :param sep:     string inserted between values, default a space.
+        :param end:     string appended after the last value, default a newline.
+        :param flush:   whether to forcibly flush the stream.
+
+        The keyword arguments are inherited from Python's :func:`print` function.
+        There is an additional keyword argument, ``tb``, which determines the depth of the
+        calling frame. It is not passed to :func:`print`.'''
+    rv = _caller(tb)
+    bold = colored.attr('bold') if bold else ''
+
+    end = ifnone(end, ' [%s:%s]\n' % (os.path.basename(rv[0]), rv[1]))
+    print(style('%s %s%s' % (UNICODE.CHECKMARK, sep.join(mapstr(args)), end),
+                color='green', bold=bold),
+          file=sys.stderr, sep=sep, flush=flush, end='')
+
+

@@ -4,16 +4,129 @@ import platform
 import shlex
 import struct
 import subprocess
+from collections import deque
+
 import colored
 import sys
+
+import tabulate
 from colored.colored import stylize
 from dnutils.tools import ifnot, ifnone
 from threading import RLock
 import re
 
 
+class ASCII:
+    '''
+    A collection of ACSII escape sequences to be used with ASCII tty devices such as the console.
+    '''
+
+    _PREFIX = chr(27) + '['
+    CLS = _PREFIX + '2J'
+    HFILL = _PREFIX + 'K'
+    HFILLR = _PREFIX + 'K\n'
+    UP = _PREFIX + '%dA'
+    DOWN = _PREFIX + '%dB'
+    LEFT = _PREFIX + '%dC'
+    RIGHT = _PREFIX + '%dD'
+    SAVE = _PREFIX + 's'
+    RESTORE = _PREFIX + 'u'
+    MOVE_CURSOR = _PREFIX + '{row};{col}H'
+
+    @staticmethod
+    def _apply(code):
+        print(code, end='')
+
+    @staticmethod
+    def cls():
+        '''
+        Clear the console screen and move the cursor to the upper left corner.
+        :return:
+        '''
+        ASCII.bottom()
+        ASCII._apply(ASCII.CLS)
+        ASCII.mv()
+
+    @staticmethod
+    def mv(row=0, col=0):
+        '''
+        Move the cursor to the specified ``row`` and ``col``umn.
+
+        :param row:
+        :param col:
+        :return:
+        '''
+        ASCII._apply(ASCII.MOVE_CURSOR.format(row=row, col=col))
+
+    @staticmethod
+    def save():
+        ASCII._apply(ASCII.SAVE)
+
+    @staticmethod
+    def restore():
+        ASCII._apply(ASCII.RESTORE)
+
+    @staticmethod
+    def up(n=1):
+        '''
+        Move the cursor ``n`` lines up.
+
+        :param n:
+        :return:
+        '''
+        ASCII._apply(ASCII.UP % n)
+
+    @staticmethod
+    def down(n=1):
+        '''
+        Move the cursor ``n`` lines down.
+        :param n:
+        :return:
+        '''
+        ASCII._apply(ASCII.DOWN % n)
+
+    @staticmethod
+    def left(n=1):
+        '''
+        Move the cursor ``n`` characters to the left.
+        :param n:
+        :return:
+        '''
+        ASCII._apply(ASCII.LEFT % n)
+
+    @staticmethod
+    def right(n=1):
+        '''
+        Move the cursor ``n`` characters to the right.
+        :param n:
+        :return:
+        '''
+        ASCII._apply(ASCII.RIGHT % n)
+
+    @staticmethod
+    def hfill():
+        ASCII._apply(ASCII.HFILL)
+
+    @staticmethod
+    def bottom():
+        c, r = os.get_terminal_size()
+        ASCII.mv(r, c)
+
+
 def bf(s):
+    '''Return a copy of the string ``s`` in boldface'''
     return colored.stylize(s, colored.attr('bold'))
+
+
+def style(txt, color, bold=False):
+    '''
+    Return a copy of the string ``txt`` in ``color`` and ``bold`` (True/False)
+    :param txt:
+    :param color:
+    :param bold:
+    :return:
+    '''
+    return colored.stylize(txt, colored.fg(color) + (colored.attr('bold') if bold else ''))
 
 
 def ljust(t, l, f):
@@ -157,7 +270,7 @@ def infbarstr(width, pos):
     return bar
 
 
-class ProgressBar():
+class ProgressBar:
     '''
     An ASCII progress bar to show progress in the console.rst.
     '''
@@ -281,7 +394,6 @@ class ProgressBar():
             self.lblwidth, ' ')
 
 
-
 ansi_escape = re.compile(r'\x1b[^m]*m')
 
 
@@ -351,6 +463,114 @@ class StatusMsg(object):
         sys.stdout.write(end)
 
 
-if __name__ == "__main__":
-    sizex, sizey = get_terminal_size()
-    print('width =', sizex, 'height =', sizey)
+def treetable(data_generator, headers=None, tablefmt=None):
+    '''
+    Computes a string representation of the ``data`` in the style of a tree/table combination.
+
+    Data is passed in the form of a generator object that yields ``(level, row)`` pairs, where each
+    ``level`` is an integer specifying the level on which the data row ``row`` resides in the tree.
+    ``row`` is then a ``list`` or ``tuple`` holding the single table entries.
+
+    :param tablefmt:
+    :param headers:
+    :param data_generator:
+    '''
+    preserve_whitespace = tabulate.PRESERVE_WHITESPACE
+    tabulate.PRESERVE_WHITESPACE = True
+    data = deque()
+    lastlevel = 0
+    for level, item in data_generator:
+        if level - 1 > lastlevel:
+            raise ValueError('illegal level: can only increment level by one.')
+        lastlevel = level
+        data.append([((' ' * (2 * level)) + '+ %s' % item[0])] + list(item[1:]))
+    s = tabulate.tabulate(list(data), headers=headers, tablefmt=tablefmt)
+    tabulate.PRESERVE_WHITESPACE = preserve_whitespace
+    return s
+
+
+def bars(values, texts=None, mode='norm', width=None, color=None):
+    '''
+    Prints horizontal bars in vertical order of the values ``values``, which is any iterable object holding numeric values.
+    All values must be non-negative.
+
+    :param values: array-like object storing numeric values
+    :param texts:  optional texts that appear on the right side of the bars.
+    :param mode:   how the bars shall be computed. 'norm', 'max'
+    :param width:  the width of the bars (in console characters), default: console width
+    :param color:
+    :return:
+    '''
+    if not all(v >= 0 for v in values):
+        raise ValueError('All values must be non-negative.')
+    texts = ifnone(texts, [''] * len(values))
+    z = 0
+    if mode == 'norm':
+        z = sum(values)
+    if mode == 'max':
+        z = max(values)
+    w = ifnone(width, os.get_terminal_size()[1])
+    for idx, ((v, r), t) in enumerate(zip([(v, v / z) if z > 0 else (0, 0) for v in values], texts)):
+        print('%.2d: %s (%s) %s' % (idx, barstr(w, r, color=color), v, t))
+
+
+def askyesno(question, default=True, allownone=False):
+    '''
+    Ask the user a Yes/No question.
+
+    :param allownone:   Allow 'c' for cancel. Will return ``None`` in this case.
+    :param question:    The question to be asked.
+    :param default:     The default value. Can be either ``True``, ``False``, or ``None``.
+    :return:
+    '''
+    choices = {0: 'n', 1: 'y'}
+    if allownone:
+        choices[None] = 'c'
+    # idx = choices.index(default)
+    choices[default] = choices[default].upper()
+    while 1:
+        i = input('%s [%s] ' % (question, '/'.join(choices.values()))).strip().lower()
+        if not i:
+            i = default
+        elif i in ''.join(choices.values()).lower():
+            i = {'n': False, 'y': True, 'c': None}[i]
+        else:
+            continue
+        return i
+
+
+def user_select(question, options, default=0):
+    '''Display number of options to the user an ask him to select one by typing a number.
+    The ``question`` is a string prepended to the list of possible ``options``.
+    ``default`` is the (one-based) index of the selection that is selected by default.
+
+    If the "c" character is entered, ``None`` is returned indicating that no selection was made.
+
+    :param question:    question to be displayed to the user
+    :param options:     list of entities the user is supposed to pick one, their string representations will be displayed.
+    :param default:     the (one-based) index of the default selection. Entering nothing but just hitting "return" will return this selection.
+    :return:
+    '''
+    default += 1
+    txt = question + '\n'
+    indent = '1' if len(options) < 10 else ('2' if len(options) < 100 else 3)
+    idxpattern = '[%%.%sd] ' % indent
+    pattern = '  %s%%s\n' % idxpattern
+    for i, opt in enumerate(options):
+        txt += pattern % (i + 1, opt)
+    print(txt)
+    while 1:
+        sel = input('Your selection (c for cancel, default is [%s]): ' % (default))
+        if sel == 'c':
+            return None
+        try:
+            if sel:
+                sel = int(sel)
+                if not 1 <= sel <= len(options):
+                    continue
+            else:
+                sel = default
+        except ValueError:
+            continue
+        else:
+            return sel - 1

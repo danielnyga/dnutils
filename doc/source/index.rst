@@ -25,27 +25,6 @@ Get the source code from: ::
 
    https://github.com/danielnyga/dnutils
 
-The repository contains the branches ``python2.7`` and ``python3.5`` which hold implementations of `dnutils`
-in the respective Python version. The ``master`` branch is a meta-checkout containing both ``python2.7`` and
-``python3.5`` as submodules. It also holds the release tags and ``setup.py``. After cloning it with::
-
-   git clone --recursive https://github.com/danielnyga/dnutils
-
-one should have the following directory structure:::
-
-   ./python3.5
-   ./python2.7
-   ./_version
-   ./doc
-   ./test.py
-   ./setup.py
-   ./setup.cfg
-   ./LICENSE
-   ./MANIFEST.in
-   ./README.md
-   ./.gitmodules
-   ./.gitignore
-
 
 .. toctree::
    :hidden:
@@ -53,6 +32,7 @@ one should have the following directory structure:::
    tools
    debug
    console
+   dates
    threads
    logging
    signals

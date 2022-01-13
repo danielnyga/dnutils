@@ -1,11 +1,13 @@
 import os
-from distutils.core import setup
+# from distutils.core import setup
 
 import sys
 
-sys.path.append(os.path.join('src', 'dnutils'))
+from setuptools import setup, find_packages
 
-import version
+sys.path.insert(0, os.path.join('.', 'src'))
+
+from dnutils import version
 
 __basedir__ = version.__basedir__
 __version__ = version.__version__
@@ -26,16 +28,16 @@ def read(fname):
 
 setup(
     name='dnutils',
-    packages=['dnutils'],
+    packages=find_packages(),
     package_dir={
-        'dnutils': basedir('dnutils'),
-        # 'dnutils.version': 'version',
+        'dnutils': os.path.join('.', 'src'),
     },
+    use_scm_version=True,
     version=__version__,
     description='A collection of convenience tools for everyday Python programming',
     long_description=read('README.md'),
     author='Daniel Nyga',
-    author_email='daniel.nyga@t-online.de',
+    author_email='nyga@cs.uni-bremen.de',
     url='https://spritinio.de/dnutils',
     download_url='https://github.com/danielnyga/dnutils/archive/%s.tar.gz' % __version__,
     keywords=['testing', 'logging', 'threading', 'multithreading', 'debugging', 'tools', 'utilities'],
@@ -60,6 +62,8 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
     ],
     install_requires=requirements(),
 )

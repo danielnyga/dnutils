@@ -52,3 +52,23 @@ stati can be customized by handing them over in the ``stati``
 parameter of the constructor. A status is just a (possibly ASCII
 escaped color) string. So customized status labels can be
 easily created.
+
+Bars
+~~~~
+
+.. autofunction:: dnutils.console.bars
+
+Tree-Tables
+~~~~~~~~~~~
+
+.. autofunction:: dnutils.console.treetable
+
+Users' Selection
+~~~~~~~~~~~~~~~~
+
+.. autofunction:: dnutils.console.user_select
+
+Ask Boolean Question
+~~~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: dnutils.console.askyesno

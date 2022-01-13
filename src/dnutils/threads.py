@@ -31,7 +31,8 @@ except ImportError:
 
 __all__ = ['active_count', 'Condition', 'current_thread', 'enumerate', 'Event',
            'Lock', 'RLock', 'Semaphore', 'BoundedSemaphore', 'Thread', 'Barrier',
-           'Timer', 'ThreadError', 'ThreadInterrupt', 'setprofile', 'settrace', 'local', 'stack_size']
+           'Timer', 'ThreadError', 'ThreadInterrupt', 'setprofile', 'settrace', 'local', 'stack_size',
+           'SuspendableThread', 'sleep', 'waitabout']
 
 # Rename some stuff so "from threading import *" is safe
 _start_new_thread = _thread.start_new_thread
