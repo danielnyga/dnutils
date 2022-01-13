@@ -3,7 +3,7 @@ import os
 
 import sys
 
-from setuptools import setup, find_packages
+from setuptools import setup
 
 sys.path.insert(0, os.path.join('.', 'src'))
 
@@ -28,11 +28,10 @@ def read(fname):
 
 setup(
     name='dnutils',
-    packages=find_packages(),
+    packages=['dnutils', 'dnutils.version'],
     package_dir={
-        'dnutils': os.path.join('.', 'src'),
+        '': 'src',
     },
-    use_scm_version=True,
     version=__version__,
     description='A collection of convenience tools for everyday Python programming',
     long_description=read('README.md'),
