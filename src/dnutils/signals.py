@@ -8,7 +8,7 @@ __systerm = defaultdict(list)
 
 import platform
 
-if platform.platform() == 'Windows':
+if 'Windows' in platform.platform():
     SIGABRT = signal_.SIGABRT
     SIGFPE = signal_.SIGFPE
     SIGILL = signal_.SIGILL
