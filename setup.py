@@ -1,21 +1,8 @@
 import os
-# from distutils.core import setup
-
 import sys
-
 from setuptools import setup
 
 sys.path.insert(0, os.path.join('.', 'src'))
-
-from dnutils import version
-
-__basedir__ = version.__basedir__
-__version__ = version.__version__
-
-
-def basedir(name):
-    return os.path.join(__basedir__, name)
-
 
 def requirements():
     with open('requirements.txt', 'r') as f:
@@ -24,6 +11,9 @@ def requirements():
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
+
+
+__version__ = read('version')
 
 
 setup(
