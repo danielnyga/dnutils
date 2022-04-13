@@ -14,7 +14,7 @@ import datetime
 
 from .tools import ifnone
 from .debug import _caller
-from .threads import RLock, interrupted, Lock
+from .threads import RLock, interrupted
 from .tools import jsonify
 
 import portalocker
@@ -28,6 +28,7 @@ ERROR = logging.ERROR
 CRITICAL = logging.CRITICAL
 
 
+# noinspection PyBroadException
 class FileHandler(logging.FileHandler):
     def __init__(self, filename, mode='a', encoding=None, delay=False):
         logging.FileHandler.__init__(self, filename, mode=mode, encoding=encoding, delay=delay)
@@ -154,18 +155,16 @@ class ExposureManager:
                 exposure.delete()
 
 
+# noinspection PyUnresolvedReferences
 def _cleanup_exposures(*_):
     _exposures.delete()
-
-
-# def exposures(basedir='.'):
-#     global _exposures
-#     _exposures = ExposureManager(basedir)
 
 
 def expose(name, *data, ignore_errors=False):
     '''
     Expose the data ``data`` under the exposure name ``name``.
+
+    :param ignore_errors:
     :param name:
     :param data:
     :return:
@@ -306,6 +305,7 @@ class Exposure:
         '''
         Write the item to the exposure.
 
+        :param ignore_errors:
         :param item:
         :return:
         '''
@@ -339,7 +339,7 @@ class Exposure:
         '''
         Load the content exposed by this exposure.
 
-        If ``block`` is ``True``, this methods blocks until the content of this exposure
+        If ``block`` is ``True``, these methods blocks until the content of this exposure
         has been updated by the writer
         :return:
         '''
@@ -349,12 +349,14 @@ class Exposure:
                 return json.load(f)
 
 
-class _LoggerAdapter(object):
+class _LoggerAdapter:
+
     def __init__(self, logger):
         self._logger = logger
-        self._logger.findCaller = self._caller
+        self._logger.findCaller = _LoggerAdapter._caller
 
-    def _caller(self, *_):
+    @staticmethod
+    def _caller(*_):
         return _caller(4)
 
     def critical(self, *args, **kwargs):
@@ -420,12 +422,14 @@ class _LoggerAdapter(object):
         return _LoggerAdapter(logger)
 
     def __str__(self):
-        return '<LoggerAdapter name="%s", level=%s>' % (self.name, logging._levelToName[self.level])
+        return '<LoggerAdapter name="%s", level=%s>' % (self.name,
+                                                        get_level_name(self.level))
+
 
 def getloggers():
-    with logging._lock:
-        for name in logging.Logger.manager.loggerDict:
-            yield getlogger(name)
+    for name in logging.Logger.manager.loggerDict:
+        yield getlogger(name)
+
 
 def loglevel(level, name=None):
     if name is None:
@@ -443,6 +447,16 @@ def cleanstr(s):
 class ColoredStreamHandler(logging.StreamHandler):
     def emit(self, record):
         self.stream.write(self.format(record))
+
+
+# noinspection PyProtectedMember
+def get_level_name(level):
+    return logging._levelToName[level]
+
+
+# noinspection PyProtectedMember
+def level_names():
+    return list(logging._levelToName.values())
 
 
 colored_console = ColoredStreamHandler()
@@ -466,15 +480,19 @@ class ColoredFormatter(logging.Formatter):
     }
 
     def __init__(self, formatstr=None):
+        super().__init__()
         self.formatstr = formatstr
 
     def format(self, record):
         levelstr = colored.attr('reset')
         levelstr += ColoredFormatter.fmap[record.levelno]
-        maxlen = max(map(len, logging._levelToName.values()))
-        header = '%s - %s - ' % (datetime.datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S'),
-                                 colored.stylize(record.levelname.center(maxlen, ' '), levelstr))
-        return header + colored.stylize(('\n' + ' ' * len(cleanstr(header))).join(' '.join(map(str, record.msg)).split('\n')) + '\n',
+        maxlen = max(map(len, level_names()))
+        header = '%s - %s - ' % (datetime.datetime.fromtimestamp(record.created)
+                                 .strftime('%Y-%m-%d %H:%M:%S'),
+                                 colored.stylize(record.levelname.center(maxlen, ' '),
+                                                 levelstr))
+        return header + colored.stylize(('\n' + ' ' * len(cleanstr(header)))
+                                        .join(' '.join(map(str, record.msg)).split('\n')) + '\n',
                                         ColoredFormatter.msgmap[record.levelno])
 
 
@@ -482,30 +500,31 @@ colored_console.setFormatter(ColoredFormatter())
 
 try:
     import pymongo
-except ImportError:
+except ModuleNotFoundError:
     pass
 else:
     class MongoHandler(logging.Handler):
         '''
         Log handler for logging into a MongoDB database.
         '''
-        def __init__(self, collection, checkkeys=True):
+        def __init__(self, collection):
             '''
             Create the handler.
 
             :param collection:  An accessible collection in a pymongo database.
             '''
             logging.Handler.__init__(self)
-            self.checkkeys = checkkeys
             self.coll = collection
             self.setFormatter(MongoFormatter())
 
         def emit(self, record):
             try:
-                self.coll.insert(self.format(record), check_keys=self.checkkeys)
+                self.coll.insert_one(self.format(record))
             except pymongo.errors.ServerSelectionTimeoutError:
-                sys.stderr.write('WARNING: Could not establish connection to mongo client to write log. Message:\n'
-                                 '{} - {} - {}\n'.format(datetime.datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S'),
+                sys.stderr.write('WARNING: Could not establish '
+                                 'connection to mongo client to write log. Message:\n'
+                                 '{} - {} - {}\n'.format(datetime.datetime.fromtimestamp(record.created)
+                                                         .strftime('%Y-%m-%d %H:%M:%S'),
                                                          record.levelname,
                                                          ' '.join([str(s) for s in record.msg])))
 
@@ -536,6 +555,7 @@ def newlogger(*handlers, level=INFO):
     Example:
     >>> dnlog.newlogger(logging.StreamHandler(), level=ERROR)
 
+    :param level:
     :param handlers:
     :param kwargs:
     :return:
@@ -600,24 +620,3 @@ def getlogger(name=None, level=None):
 
 
 console = colored_console
-loggers()
-
-
-if __name__ == '__main__':
-
-    # for i in range(10):
-
-    expose('/vars/bufsize', 'hello')
-    expose('/internal/state', 1)
-    for ex in active_exposures():
-        expose('/vars/bufsize', 'bla')
-        # sleep(10)
-        print(ex, inspect(ex))
-        # portalocker.lock(f2, portalocker.LOCK_EX, timeout=0)
-
-        # try:
-        #     print(inspect('/vars/bufsize'))
-        # except ExposureEmptyError:
-        #     sys.exit(0)
-        # sleep(5)
-

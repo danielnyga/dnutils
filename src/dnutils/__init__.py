@@ -1,5 +1,3 @@
-import os
-
 __author__ = 'Daniel Nyga'
 
 from .debug import (out, stop, trace, stoptrace, err, warn, ok)
