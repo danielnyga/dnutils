@@ -4,6 +4,7 @@ from setuptools import setup
 
 sys.path.insert(0, os.path.join('.', 'src'))
 
+
 def requirements():
     with open('requirements.txt', 'r') as f:
         return [l.strip() for l in f.readlines() if l.strip()]
