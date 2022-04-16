@@ -11,7 +11,7 @@ all:
 	rm -rf ${ENV_NAME} && virtualenv ${ENV_NAME} && . ${ENV_NAME}/bin/activate && pip install dist/${PKG_NAME}-${PKG_VERSION}.tar.gz && pip install ${EXTRA_REQUIREMENTS} && echo `python -c "from ${PKG_NAME}.version import VERSION_STRING_FULL; print('${PKG_NAME} version %s build successful.' % VERSION_STRING_FULL)"` && rm -r ${ENV_NAME}
 
 upload:
-	twine upload dist/${PKG_NAME}-${PKG_VERION}.tar.gz
+	twine upload dist/${PKG_NAME}-${PKG_VERSION}.tar.gz
 
 clean:
 	rm -rf dist *.egg-info *.log tmpenv-${PKG_NAME}
