@@ -1,12 +1,14 @@
 import json
 import logging
 import os
+import random
 import re
 import sys
 import tempfile
 
 import atexit
 import warnings
+from multiprocessing import current_process
 
 import colored
 
@@ -14,7 +16,7 @@ import datetime
 
 from .tools import ifnone
 from .debug import _caller
-from .threads import RLock, interrupted
+from .threads import RLock, interrupted, sleep
 from .tools import jsonify
 
 import portalocker
@@ -507,33 +509,61 @@ else:
         '''
         Log handler for logging into a MongoDB database.
         '''
-        def __init__(self, collection):
+        def __init__(self, mongoclient: pymongo.MongoClient, db: str, collection: str, retries: int = 3):
             '''
             Create the handler.
 
             :param collection:  An accessible collection in a pymongo database.
             '''
-            logging.Handler.__init__(self)
-            self.coll = collection
+            super().__init__()
+            self.mongoclient = mongoclient
+            self.db = db
+            self.collname = collection
+            self.retries = retries
             self.setFormatter(MongoFormatter())
+            self.__pid = current_process()
+
+        @property
+        def coll(self):
+            return getattr(getattr(self.mongoclient, self.db), self.collname)
+
+        @property
+        def connected(self) -> bool:
+            return self.__pid == current_process()
+
+        # noinspection PyProtectedMember
+        def connect(self) -> None:
+            self.mongoclient = self.mongoclient._duplicate()
+            self.__pid = current_process()
 
         def emit(self, record):
-            try:
-                self.coll.insert_one(self.format(record))
-            except pymongo.errors.ServerSelectionTimeoutError:
-                sys.stderr.write('WARNING: Could not establish '
-                                 'connection to mongo client to write log. Message:\n'
-                                 '{} - {} - {}\n'.format(datetime.datetime.fromtimestamp(record.created)
-                                                         .strftime('%Y-%m-%d %H:%M:%S'),
-                                                         record.levelname,
-                                                         ' '.join([str(s) for s in record.msg])))
+            if not self.connected:
+                self.connect()
+            for try_ in range(self.retries):
+                try:
+                    self.coll.insert_one(self.format(record))
+                except pymongo.errors.ServerSelectionTimeoutError:
+                    sys.stderr.write('WARNING: Could not establish '
+                                     'connection to mongo client to write log. Message:\n'
+                                     '{} - {} - {}\n'.format(datetime.datetime.fromtimestamp(record.created)
+                                                             .strftime('%Y-%m-%d %H:%M:%S'),
+                                                             record.levelname,
+                                                             ' '.join([str(s) for s in record.msg])))
+                except pymongo.errors.AutoReconnect:
+                    sleep(random.uniform(1, 5))
+                else:
+                    break
 
 
     class MongoFormatter(logging.Formatter):
 
         def format(self, record):
-            return {'message': record.msg , 'timestamp': datetime.datetime.utcfromtimestamp(record.created),
-                    'module': record.module, 'lineno': record.lineno, 'name': record.name, 'level': record.levelname}
+            return {'message': record.msg ,
+                    'timestamp': datetime.datetime.utcfromtimestamp(record.created),
+                    'module': record.module,
+                    'lineno': record.lineno,
+                    'name': record.name,
+                    'level': record.levelname}
 
 
 class LoggerConfig(object):

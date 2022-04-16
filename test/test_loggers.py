@@ -16,8 +16,8 @@ from dnutils.logs import MongoHandler
 class MongoHandlerTest(TestCase):
 
     def test_mongo_handler_insert(self):
-        coll = mongomock.MongoClient().db.log
-        handler = MongoHandler(collection=coll)
+        handler = MongoHandler(mongomock.MongoClient(), 'db', 'log')
+        coll = handler.coll
         logger = getlogger('/dnutils/test', level=logs.DEBUG)
         logger.add_handler(handler)
         logger.info('Test1')
