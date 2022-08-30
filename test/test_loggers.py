@@ -10,7 +10,7 @@ except ModuleNotFoundError:
     raise
 
 
-from dnutils.logs import MongoHandler
+from dnutils.logs import MongoHandler, colored_console
 
 
 class MongoHandlerTest(TestCase):
@@ -30,7 +30,7 @@ class MongoHandlerTest(TestCase):
 class LoggerTest(TestCase):
 
     def test_logger(self):
-        logger = getlogger('test', level=logs.DEBUG)
+        logger = getlogger('test', level=logs.DEBUG, handlers=[colored_console])
         logger.debug('This is the DEBUG message.')
         logger.info('This is the INFO message.')
         logger.warning('This is the WARNING message.')

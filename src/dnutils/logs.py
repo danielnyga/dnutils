@@ -617,7 +617,7 @@ def loggers(loggers=None):
             logger._logger._initialized = True
 
 
-def getlogger(name=None, level=None):
+def getlogger(name=None, level=None, handlers=None):
     '''
     Get the logger with the associated name.
 
@@ -626,6 +626,7 @@ def getlogger(name=None, level=None):
 
     :param name:    the name of the desired logger
     :param level:   the log level
+    :param handlers: a list of handlers to assiciate with this logger
     :return:
     '''
     if name == 'default':
@@ -635,13 +636,19 @@ def getlogger(name=None, level=None):
     adapter = _LoggerAdapter(logger)
     if not hasattr(logger, '_initialized') or not logger._initialized:
         logger.parent = None
-        roothandlers = list(logging.getLogger().handlers)
-        # clear all loggers first
-        for h in logger.handlers:
-            logger.removeHandler(h)
-        # take default handlers from the root logger
-        for h in roothandlers:
-            adapter.add_handler(h)
+        if handlers is None:
+            roothandlers = list(logging.getLogger().handlers)
+            for h in logger.handlers:
+                logger.removeHandler(h)
+                adapter.add_handler(h)
+            for h in roothandlers:
+                if h not in logger.handlers:
+                    adapter.add_handler(h)
+            if not adapter.handlers and handlers is None:
+                adapter.add_handler(console)
+        else:
+            for h in handlers:
+                adapter.add_handler(h)
         adapter.level = ifnone(level, defaultlevel)
         logger._initialized = True
     if level is not None:
