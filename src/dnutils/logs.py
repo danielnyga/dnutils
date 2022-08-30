@@ -558,7 +558,7 @@ else:
     class MongoFormatter(logging.Formatter):
 
         def format(self, record):
-            return {'message': record.msg ,
+            return {'message': str(record.msg),
                     'timestamp': datetime.datetime.utcfromtimestamp(record.created),
                     'module': record.module,
                     'lineno': record.lineno,
