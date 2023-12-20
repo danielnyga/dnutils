@@ -14,7 +14,7 @@ import colored
 
 import datetime
 
-from .tools import ifnone
+from .tools import ifnone, mapstr
 from .debug import _caller
 from .threads import RLock, interrupted, sleep
 from .tools import jsonify
@@ -362,22 +362,22 @@ class _LoggerAdapter:
         return _caller(4)
 
     def critical(self, *args, **kwargs):
-        self._logger.critical(args, extra=kwargs)
+        self._logger.critical(' '.join(mapstr(args)), extra=kwargs)
 
     def exception(self, *args, **kwargs):
-        self._logger.exception(args, extra=kwargs)
+        self._logger.exception(' '.join(mapstr(args)), extra=kwargs)
 
     def error(self, *args, **kwargs):
-        self._logger.error(args, extra=kwargs)
+        self._logger.error(' '.join(mapstr(args)), extra=kwargs)
 
     def warning(self, *args, **kwargs):
-        self._logger.warning(args, extra=kwargs)
+        self._logger.warning(' '.join(mapstr(args)), extra=kwargs)
 
     def info(self, *args, **kwargs):
-        self._logger.info(args, extra=kwargs)
+        self._logger.info(' '.join(mapstr(args)), extra=kwargs)
 
     def debug(self, *args, **kwargs):
-        self._logger.debug(args, extra=kwargs)
+        self._logger.debug(' '.join(mapstr(args)), extra=kwargs)
 
     def __getattr__(self, attr):
         return getattr(self._logger, attr)
@@ -499,7 +499,7 @@ class ColoredFormatter(logging.Formatter):
                                  colored.stylize(record.levelname.center(maxlen, ' '),
                                                  levelstr))
         return header + colored.stylize(('\n' + ' ' * len(cleanstr(header)))
-                                        .join(' '.join(map(str, record.msg)).split('\n')) + '\n',
+                                        .join(record.msg.split('\n')) + '\n',
                                         ColoredFormatter.msgmap[record.levelno])
 
 
