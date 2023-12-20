@@ -464,13 +464,18 @@ def level_names():
 colored_console = ColoredStreamHandler()
 
 
+if colored.__version__ >= '2.2.0':
+    UNDERLINED = 'underline'
+else:
+    UNDERLINED = 'underlined'
+
 class ColoredFormatter(logging.Formatter):
     fmap = {
         logging.DEBUG: colored.fg('cyan') + colored.attr('bold'),
         logging.INFO: colored.fg('white') + colored.attr('bold'),
         logging.WARNING: colored.fg('yellow') + colored.attr('bold'),
         logging.ERROR: colored.fg('red') + colored.attr('bold'),
-        logging.CRITICAL: colored.bg('dark_red_2') + colored.fg('white') + colored.attr('underlined') + colored.attr(
+        logging.CRITICAL: colored.bg('dark_red_2') + colored.fg('white') + colored.attr(UNDERLINED) + colored.attr(
             'bold')
     }
     msgmap = {
