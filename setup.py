@@ -28,7 +28,6 @@ setup(
     long_description=read('README.md'),
     author='Daniel Nyga',
     author_email='nyga@cs.uni-bremen.de',
-    url='https://spritinio.de/dnutils',
     download_url='https://github.com/danielnyga/dnutils/archive/%s.tar.gz' % __version__,
     keywords=['testing', 'logging', 'threading', 'multithreading', 'debugging', 'tools', 'utilities'],
     classifiers=[
